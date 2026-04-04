@@ -3,6 +3,7 @@ import "./App.css";
 import { PROCESSES, MODIFIERS, QUICK_REF, FAO_DARK, FAO_BLUE } from "./data";
 import { toISO, formatDate, buildSteps, computeTimeline, subtractWorkingDays, countWorkingDays, addWorkingDays } from "./utils";
 import GanttChart from "./components/GanttChart";
+import { useHolidays } from "./hooks/useHolidays";
 
 // ── Sub-components defined OUTSIDE App to avoid recreation on re-render ──
 
@@ -81,14 +82,14 @@ function DeliveryPicker({ deliveryWeeks, onChange, procColor, isWorks }) {
   );
 }
 
-function StatusBanner({ label, status, minDate, maxDate, desiredDate, latestPRSafe, latestPRPossible }) {
+function StatusBanner({ label, status, minDate, maxDate, desiredDate, latestPRSafe, latestPRPossible, holidays = new Set() }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const desired = desiredDate ? new Date(desiredDate) : null;
 
   if (!status || !desiredDate) return null;
 
   if (status.type === 'ok') {
-    const bufferDays = desired && maxDate ? countWorkingDays(maxDate, desired) : 0;
+    const bufferDays = desired && maxDate ? countWorkingDays(maxDate, desired, holidays) : 0;
     return (
       <div className="status-banner status-banner-ok">
         <div className="status-banner-header">
@@ -467,6 +468,7 @@ export default function App() {
   const [estimatedValue, setEstimatedValue] = useState(null);
   const [sel, setSel] = useState({ value: "", type: "goods", hasLTA: false, hasFixedLTA: false, isDirect: false, recommendation: null, hint: null });
   const updateSel = patch => setSel(s => ({ ...s, ...patch }));
+  const { holidays, loading: holidaysLoading, error: holidaysError } = useHolidays();
 
   const proc = selected ? PROCESSES[selected] : null;
   const isWorks = selected === 'itb_works';
@@ -482,7 +484,7 @@ export default function App() {
   const effectiveActiveMods = activeMods.filter(key => applicableMods.some(m => m.key === key));
 
   const steps = selected ? buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS) : [];
-  const timeline = steps.length && prDate ? computeTimeline(steps, prDate) : [];
+  const timeline = steps.length && prDate ? computeTimeline(steps, prDate, holidays) : [];
 
   const totalMinDays = steps.reduce((s, st) => s + st.minDays, 0);
   const totalMaxDays = steps.reduce((s, st) => s + st.maxDays, 0);
@@ -521,15 +523,15 @@ export default function App() {
   const deliveryStatus = deliveryWeeks > 0 ? calcStatus(minDeliveryDate, maxDeliveryDate, desiredDeliveryDate) : null;
 
   // Latest PR approval dates — for PO target
-  const latestPRSafe = effectivePoTarget && totalMaxDays > 0 ? subtractWorkingDays(new Date(effectivePoTarget), totalMaxDays) : null;
-  const latestPRPossible = effectivePoTarget && totalMinDays > 0 ? subtractWorkingDays(new Date(effectivePoTarget), totalMinDays) : null;
+  const latestPRSafe = effectivePoTarget && totalMaxDays > 0 ? subtractWorkingDays(new Date(effectivePoTarget), totalMaxDays, holidays) : null;
+  const latestPRPossible = effectivePoTarget && totalMinDays > 0 ? subtractWorkingDays(new Date(effectivePoTarget), totalMinDays, holidays) : null;
   // Latest PR approval dates — for delivery target
   const latestPRDeliverySafe = desiredDeliveryDate && totalMaxDays > 0 && deliveryWeeks > 0
     ? (() => {
         const base = new Date(desiredDeliveryDate);
         if (isWorks) base.setMonth(base.getMonth() - deliveryWeeks);
         else base.setTime(base.getTime() - deliveryWeeks * 7 * 86400000);
-        return subtractWorkingDays(base, totalMaxDays);
+        return subtractWorkingDays(base, totalMaxDays, holidays);
       })()
     : null;
   const latestPRDeliveryPossible = desiredDeliveryDate && totalMinDays > 0 && deliveryWeeks > 0
@@ -537,7 +539,7 @@ export default function App() {
         const base = new Date(desiredDeliveryDate);
         if (isWorks) base.setMonth(base.getMonth() - deliveryWeeks);
         else base.setTime(base.getTime() - deliveryWeeks * 7 * 86400000);
-        return subtractWorkingDays(base, totalMinDays);
+        return subtractWorkingDays(base, totalMinDays, holidays);
       })()
     : null;
 
@@ -575,6 +577,9 @@ export default function App() {
             <div className="app-header-subtitle">Food and Agriculture Organization of the United Nations</div>
             <div className="app-header-title">Procurement Timeline Estimator</div>
             <div className="app-header-org">FAO Ukraine Country Office (FAOUA) · Based on Manual Section 502 &amp; FAOUA SOPs</div>
+            <div style={{ marginTop: 3, fontSize: 10, opacity: 0.75 }}>
+              {holidaysLoading ? "⏳ Loading UA holidays…" : holidaysError ? "⚠️ Holidays unavailable (weekends only)" : `✓ UA public holidays loaded (${holidays.size} days)`}
+            </div>
           </div>
         </div>
       </div>
@@ -734,6 +739,7 @@ export default function App() {
               desiredDate={effectivePoTarget}
               latestPRSafe={latestPRSafe}
               latestPRPossible={latestPRPossible}
+              holidays={holidays}
             />
 
             {/* Delivery / Works Completion Status Banner */}
@@ -746,6 +752,7 @@ export default function App() {
                 desiredDate={desiredDeliveryDate}
                 latestPRSafe={latestPRDeliverySafe}
                 latestPRPossible={latestPRDeliveryPossible}
+                holidays={holidays}
               />
             )}
 

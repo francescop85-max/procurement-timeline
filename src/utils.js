@@ -1,19 +1,37 @@
-export function addWorkingDays(date, days) {
+function iso(d) {
+  return new Date(d).toLocaleDateString('sv'); // 'YYYY-MM-DD'
+}
+
+function isNonWorking(d, holidays) {
+  const day = d.getDay();
+  return day === 0 || day === 6 || holidays.has(iso(d));
+}
+
+export function addWorkingDays(date, days, holidays = new Set()) {
   if (days === 0) return new Date(date);
   let d = new Date(date), added = 0;
-  while (added < days) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) added++; }
+  while (added < days) {
+    d.setDate(d.getDate() + 1);
+    if (!isNonWorking(d, holidays)) added++;
+  }
   return d;
 }
 
-export function subtractWorkingDays(date, days) {
+export function subtractWorkingDays(date, days, holidays = new Set()) {
   let d = new Date(date), sub = 0;
-  while (sub < days) { d.setDate(d.getDate() - 1); if (d.getDay() !== 0 && d.getDay() !== 6) sub++; }
+  while (sub < days) {
+    d.setDate(d.getDate() - 1);
+    if (!isNonWorking(d, holidays)) sub++;
+  }
   return d;
 }
 
-export function countWorkingDays(from, to) {
+export function countWorkingDays(from, to, holidays = new Set()) {
   let d = new Date(from), count = 0;
-  while (d < to) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) count++; }
+  while (d < to) {
+    d.setDate(d.getDate() + 1);
+    if (!isNonWorking(d, holidays)) count++;
+  }
   return count;
 }
 
@@ -49,14 +67,14 @@ export function buildSteps(procKey, activeMods, PROCESSES, MODIFIERS) {
   return steps;
 }
 
-export function computeTimeline(steps, startDate) {
+export function computeTimeline(steps, startDate, holidays = new Set()) {
   let minCur = new Date(startDate);
   let maxCur = new Date(startDate);
   return steps.map(step => {
     const minStart = new Date(minCur);
     const maxStart = new Date(maxCur);
-    const minEnd = addWorkingDays(minStart, step.minDays);
-    const maxEnd = addWorkingDays(maxStart, step.maxDays);
+    const minEnd = addWorkingDays(minStart, step.minDays, holidays);
+    const maxEnd = addWorkingDays(maxStart, step.maxDays, holidays);
     minCur = new Date(minEnd);
     maxCur = new Date(maxEnd);
     return { ...step, minStart, maxStart, minEnd, maxEnd };
