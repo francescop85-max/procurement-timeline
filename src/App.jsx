@@ -411,11 +411,16 @@ function SmartSelector({ sel, updateSel, onSelect, onValueChange }) {
         </div>
       </div>
 
-      {/* Find button */}
-      <div style={{ textAlign: "center", marginBottom: hint || recommendation ? 20 : 0 }}>
+      {/* Find + Clear buttons */}
+      <div style={{ textAlign: "center", display: "flex", gap: 10, justifyContent: "center", marginBottom: hint || recommendation ? 20 : 0 }}>
         <button onClick={recommend}
           style={{ background: "#005f92", color: "#fff", border: "none", borderRadius: 8, padding: "11px 36px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
           Find Method →
+        </button>
+        <button
+          onClick={() => updateSel({ value: "", type: "goods", hasLTA: false, hasFixedLTA: false, isDirect: false, recommendation: null, hint: null })}
+          style={{ background: "#fff", color: "#78909c", border: "1.5px solid #b0bec5", borderRadius: 8, padding: "11px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+          ↺ Clear
         </button>
       </div>
 
