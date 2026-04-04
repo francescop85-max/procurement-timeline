@@ -514,12 +514,15 @@ export default function App() {
     return { type: 'late' };
   }
 
-  const poStatus = calcStatus(minPoDate, maxPoDate, desiredPoDate);
+  // When no desired PO date and no delivery period, use desired delivery date as the PO target
+  const effectivePoTarget = desiredPoDate || (deliveryWeeks === 0 ? desiredDeliveryDate : "");
+
+  const poStatus = calcStatus(minPoDate, maxPoDate, effectivePoTarget);
   const deliveryStatus = deliveryWeeks > 0 ? calcStatus(minDeliveryDate, maxDeliveryDate, desiredDeliveryDate) : null;
 
   // Latest PR approval dates — for PO target
-  const latestPRSafe = desiredPoDate && totalMaxDays > 0 ? subtractWorkingDays(new Date(desiredPoDate), totalMaxDays) : null;
-  const latestPRPossible = desiredPoDate && totalMinDays > 0 ? subtractWorkingDays(new Date(desiredPoDate), totalMinDays) : null;
+  const latestPRSafe = effectivePoTarget && totalMaxDays > 0 ? subtractWorkingDays(new Date(effectivePoTarget), totalMaxDays) : null;
+  const latestPRPossible = effectivePoTarget && totalMinDays > 0 ? subtractWorkingDays(new Date(effectivePoTarget), totalMinDays) : null;
   // Latest PR approval dates — for delivery target
   const latestPRDeliverySafe = desiredDeliveryDate && totalMaxDays > 0 && deliveryWeeks > 0
     ? (() => {
@@ -728,7 +731,7 @@ export default function App() {
               status={poStatus}
               minDate={minPoDate}
               maxDate={maxPoDate}
-              desiredDate={desiredPoDate}
+              desiredDate={effectivePoTarget}
               latestPRSafe={latestPRSafe}
               latestPRPossible={latestPRPossible}
             />
@@ -838,7 +841,7 @@ export default function App() {
                     timeline={timeline}
                     proc={proc}
                     prDate={prDate}
-                    desiredDate={desiredPoDate}
+                    desiredDate={effectivePoTarget}
                     deliveryWeeks={deliveryWeeks}
                     minDeliveryDate={minDeliveryDate}
                     maxDeliveryDate={maxDeliveryDate}
