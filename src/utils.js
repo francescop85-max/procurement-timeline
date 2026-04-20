@@ -134,8 +134,8 @@ export function computeCampaignStatus(campaign, today = new Date()) {
     .filter(p => p.endDate)
     .map(p => new Date(p.endDate));
 
-  if (projectEnds.some(end => poDeadline > end) || today > prDeadline) return 'at_risk';
   if (projectEnds.some(end => deliveryDeadline > end)) return 'overdue';
+  if (projectEnds.some(end => poDeadline > end) || today > prDeadline) return 'at_risk';
   return 'on_track';
 }
 

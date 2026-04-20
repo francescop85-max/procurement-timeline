@@ -89,7 +89,7 @@ describe('computeCampaignStatus', () => {
 
   it('returns at_risk when poDeadline exceeds a project end date', () => {
     const campaign = {
-      prDeadline: futurePR, poDeadline: '2025-06-01', deliveryDeadline: '2025-07-01',
+      prDeadline: futurePR, poDeadline: '2025-06-01', deliveryDeadline: '2025-03-01',
       fundingProjects: [{ name: 'EU-2025', endDate: '2025-04-30' }],
     };
     expect(computeCampaignStatus(campaign, new Date('2025-01-01'))).toBe('at_risk');
@@ -109,6 +109,16 @@ describe('computeCampaignStatus', () => {
       fundingProjects: [{ name: 'TBD', endDate: '' }],
     };
     expect(computeCampaignStatus(campaign, new Date('2025-01-01'))).toBe('on_track');
+  });
+
+  it('returns overdue when both PO and delivery exceed a project end date', () => {
+    const campaign = {
+      prDeadline: '2099-01-01',
+      poDeadline: '2025-06-01',
+      deliveryDeadline: '2025-07-01',
+      fundingProjects: [{ name: 'EU-2025', endDate: '2025-04-30' }],
+    };
+    expect(computeCampaignStatus(campaign, new Date('2025-01-01'))).toBe('overdue');
   });
 });
 
