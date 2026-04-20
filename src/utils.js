@@ -80,3 +80,71 @@ export function computeTimeline(steps, startDate, holidays = new Set()) {
     return { ...step, minStart, maxStart, minEnd, maxEnd };
   });
 }
+
+export function computeBackwardTimeline(
+  plantingDate,
+  processKey,
+  activeMods,
+  customModifier,
+  deliveryWeeks,
+  holidays = new Set(),
+  PROCESSES,
+  MODIFIERS,
+) {
+  const steps = buildSteps(processKey, activeMods, PROCESSES, MODIFIERS);
+
+  if (customModifier && customModifier.label && customModifier.days > 0) {
+    steps.splice(steps.length - 1, 0, {
+      name: customModifier.label,
+      owner: 'Custom',
+      minDays: customModifier.days,
+      maxDays: customModifier.days,
+    });
+  }
+
+  let cursor = new Date(plantingDate);
+  cursor.setDate(cursor.getDate() - (deliveryWeeks || 0) * 7);
+  const poDeadline = new Date(cursor);
+
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i];
+    if (step.calendarDays) {
+      cursor.setDate(cursor.getDate() - step.maxDays);
+    } else {
+      cursor = subtractWorkingDays(cursor, step.maxDays, holidays);
+    }
+  }
+
+  const prDeadline = new Date(cursor);
+
+  return {
+    prDeadline: toISO(prDeadline),
+    poDeadline: toISO(poDeadline),
+    deliveryDeadline: toISO(new Date(plantingDate)),
+    steps: computeTimeline(steps, prDeadline, holidays),
+  };
+}
+
+export function computeCampaignStatus(campaign, today = new Date()) {
+  const poDeadline = new Date(campaign.poDeadline);
+  const deliveryDeadline = new Date(campaign.deliveryDeadline);
+  const prDeadline = new Date(campaign.prDeadline);
+
+  const projectEnds = (campaign.fundingProjects || [])
+    .filter(p => p.endDate)
+    .map(p => new Date(p.endDate));
+
+  if (projectEnds.some(end => poDeadline > end) || today > prDeadline) return 'at_risk';
+  if (projectEnds.some(end => deliveryDeadline > end)) return 'overdue';
+  return 'on_track';
+}
+
+export function computeProjectStatuses(campaign) {
+  const poDeadline = new Date(campaign.poDeadline);
+  const deliveryDeadline = new Date(campaign.deliveryDeadline);
+  return (campaign.fundingProjects || []).map(p => {
+    if (!p.endDate) return { ...p, status: 'ok' };
+    const end = new Date(p.endDate);
+    return { ...p, status: poDeadline > end || deliveryDeadline > end ? 'at_risk' : 'ok' };
+  });
+}
