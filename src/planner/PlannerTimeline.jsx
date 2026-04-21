@@ -14,6 +14,13 @@ const MS_PER_DAY = 86400000;
 
 function toMs(d) { return new Date(d).getTime(); }
 
+// Returns SVG text-anchor and x offset so labels near edges don't clip
+function edgeAnchor(x, margin = 52) {
+  if (x > SVG_W - margin) return { anchor: 'end',   dx: -4 };
+  if (x < LABEL_W + margin) return { anchor: 'start', dx:  4 };
+  return { anchor: 'middle', dx: 0 };
+}
+
 function buildXPos(zoomMin, zoomMax) {
   const range = zoomMax - zoomMin || 1;
   return ms => LABEL_W + CHART_W * Math.max(0, Math.min(1, (ms - zoomMin) / range));
@@ -56,23 +63,28 @@ function GridAndMarkers({ xPos, months, projectEndMap, todayX, svgH }) {
       {Object.entries(projectEndMap).map(([dateStr, color]) => {
         const x = xPos(toMs(dateStr));
         if (x < LABEL_W || x > SVG_W) return null;
+        const { anchor, dx } = edgeAnchor(x);
         return (
           <g key={dateStr}>
             <line x1={x} x2={x} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
               stroke={color} strokeWidth={2} strokeDasharray="6,3" opacity={0.85} />
-            <text x={x} y={svgH - PAD_BOTTOM + 12} fontSize={8} fill={color} textAnchor="middle" fontWeight={600}>
+            <text x={x + dx} y={svgH - PAD_BOTTOM + 12} fontSize={8} fill={color} textAnchor={anchor} fontWeight={600}>
               {new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
             </text>
-            <text x={x} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill={color} textAnchor="middle">proj. end</text>
+            <text x={x + dx} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill={color} textAnchor={anchor}>proj. end</text>
           </g>
         );
       })}
 
       {todayX >= LABEL_W && todayX <= SVG_W && (
         <g>
-          <line x1={todayX} x2={todayX} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
-            stroke="#2563eb" strokeWidth={1.5} strokeDasharray="4,3" />
-          <text x={todayX} y={svgH - PAD_BOTTOM + 12} fontSize={7} fill="#2563eb" textAnchor="middle">today</text>
+          {(() => { const { anchor, dx } = edgeAnchor(todayX); return (
+            <>
+              <line x1={todayX} x2={todayX} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
+                stroke="#2563eb" strokeWidth={1.5} strokeDasharray="4,3" />
+              <text x={todayX + dx} y={svgH - PAD_BOTTOM + 12} fontSize={7} fill="#2563eb" textAnchor={anchor}>today</text>
+            </>
+          ); })()}
         </g>
       )}
     </>
@@ -80,10 +92,11 @@ function GridAndMarkers({ xPos, months, projectEndMap, todayX, svgH }) {
 }
 
 function DateTick({ x, y, label, color = '#555' }) {
+  const { anchor, dx } = edgeAnchor(x);
   return (
     <g>
       <line x1={x} x2={x} y1={y - 3} y2={y + 16} stroke={color} strokeWidth={1} opacity={0.6} />
-      <text x={x} y={y + 26} fontSize={7} fill={color} textAnchor="middle">{label}</text>
+      <text x={x + dx} y={y + 26} fontSize={7} fill={color} textAnchor={anchor}>{label}</text>
     </g>
   );
 }
@@ -256,25 +269,27 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
           >
             <GridAndMarkers xPos={xPos} months={months} projectEndMap={projectEndMap} todayX={todayX} svgH={svgH} />
 
-            {poX && (
+            {poX && (() => { const { anchor, dx } = edgeAnchor(poX); return (
               <g>
                 <line x1={poX} x2={poX} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
                   stroke="#e65100" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.7} />
-                <text x={poX} y={svgH - PAD_BOTTOM + 12} fontSize={8} fill="#e65100" textAnchor="middle" fontWeight={600}>
+                <text x={poX + dx} y={svgH - PAD_BOTTOM + 12} fontSize={8} fill="#e65100" textAnchor={anchor} fontWeight={600}>
                   {new Date(selected.poDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                 </text>
-                <text x={poX} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill="#e65100" textAnchor="middle">PO by</text>
+                <text x={poX + dx} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill="#e65100" textAnchor={anchor}>PO by</text>
               </g>
-            )}
+            ); })()}
 
-            <g>
-              <line x1={plantX} x2={plantX} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
-                stroke="#2e7d32" strokeWidth={2} opacity={0.8} />
-              <text x={plantX} y={svgH - PAD_BOTTOM + 12} fontSize={8} fill="#2e7d32" textAnchor="middle" fontWeight={600}>
-                {new Date(selected.plantingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
-              </text>
-              <text x={plantX} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill="#2e7d32" textAnchor="middle">🌱 planting</text>
-            </g>
+            {(() => { const { anchor, dx } = edgeAnchor(plantX); return (
+              <g>
+                <line x1={plantX} x2={plantX} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
+                  stroke="#2e7d32" strokeWidth={2} opacity={0.8} />
+                <text x={plantX + dx} y={svgH - PAD_BOTTOM + 12} fontSize={8} fill="#2e7d32" textAnchor={anchor} fontWeight={600}>
+                  {new Date(selected.plantingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+                </text>
+                <text x={plantX + dx} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill="#2e7d32" textAnchor={anchor}>🌱 planting</text>
+              </g>
+            ); })()}
 
             {steps.map((step, i) => {
               const y = PAD_TOP + i * ROW_H;
