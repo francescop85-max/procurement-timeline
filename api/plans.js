@@ -4,18 +4,23 @@ const BLOB_PATH = "monitored-plans.json";
 
 async function readPlans() {
   try {
-    // Check if the blob exists
     const meta = await head(BLOB_PATH, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => null);
     if (!meta) return [];
-    const res = await fetch(meta.downloadUrl);
+    const res = await fetch(meta.downloadUrl, {
+      headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
+    });
     if (!res.ok) return [];
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.error('readPlans error:', err.message);
     return [];
   }
 }
 
 async function writePlans(plans) {
+  try {
+    await del(BLOB_PATH, { token: process.env.BLOB_READ_WRITE_TOKEN });
+  } catch {}
   await put(BLOB_PATH, JSON.stringify(plans), {
     access: "private",
     contentType: "application/json",
@@ -32,18 +37,23 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   if (req.method === "GET") {
-    const plans = await readPlans();
-    return res.status(200).json(plans);
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json(await readPlans());
   }
 
   if (req.method === "POST") {
-    const { planId, url, snapshot, savedAt } = req.body;
-    if (!planId || !url || !snapshot) return res.status(400).json({ error: "Missing fields" });
-    const plans = await readPlans();
-    const filtered = plans.filter(p => p.planId !== planId);
-    const next = [{ planId, url, snapshot, savedAt }, ...filtered];
-    await writePlans(next);
-    return res.status(200).json({ ok: true });
+    try {
+      const { planId, url, snapshot, savedAt } = req.body;
+      if (!planId || !url || !snapshot) return res.status(400).json({ error: "Missing fields" });
+      const plans = await readPlans();
+      const filtered = plans.filter(p => p.planId !== planId);
+      const next = [{ planId, url, snapshot, savedAt }, ...filtered];
+      await writePlans(next);
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('POST /api/plans error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
   }
 
   if (req.method === "DELETE") {
