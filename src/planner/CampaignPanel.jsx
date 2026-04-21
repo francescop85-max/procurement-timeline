@@ -151,7 +151,7 @@ export default function CampaignPanel({ campaign, onSave, onClose }) {
       </div>
 
       <div className="panel-field">
-        <div className="panel-label">Target Planting Date</div>
+        <div className="panel-label">Target Planting / Delivery Date</div>
         <input className="panel-input" type="date" value={form.plantingDate} onChange={e => set('plantingDate', e.target.value)} />
       </div>
 
