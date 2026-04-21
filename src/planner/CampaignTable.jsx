@@ -71,9 +71,10 @@ function SummaryView({ campaigns, selectedId, onSelect, onEdit, onDelete, onAdd 
   );
 }
 
-function DetailView({ campaign, onBack, onEdit, onDelete }) {
+function DetailView({ campaign, liveSteps, onBack, onEdit, onDelete }) {
   const proc = PROCESSES[campaign.selectedMethod];
-  const steps = campaign.steps || [];
+  const steps = liveSteps || campaign.steps || [];
+  const isDragging = !!liveSteps;
 
   return (
     <>
@@ -109,13 +110,17 @@ function DetailView({ campaign, onBack, onEdit, onDelete }) {
         </thead>
         <tbody>
           {steps.map((step, i) => (
-            <tr key={i}>
+            <tr key={i} style={isDragging ? { background: '#f0fff0' } : undefined}>
               <td style={{ color: '#aaa' }}>{i + 1}</td>
               <td>{step.name}</td>
               <td style={{ color: '#888' }}>{step.owner}</td>
               <td>{step.minDays === step.maxDays ? step.minDays : `${step.minDays}–${step.maxDays}`}{step.calendarDays ? ' cal' : ''}</td>
-              <td>{step.minEnd ? formatDate(new Date(step.minEnd)) : '—'}</td>
-              <td>{step.maxEnd ? formatDate(new Date(step.maxEnd)) : '—'}</td>
+              <td style={isDragging ? { color: '#2e7d32', fontWeight: 600 } : undefined}>
+                {step.minEnd ? formatDate(new Date(step.minEnd)) : '—'}
+              </td>
+              <td style={isDragging ? { color: '#2e7d32', fontWeight: 600 } : undefined}>
+                {step.maxEnd ? formatDate(new Date(step.maxEnd)) : '—'}
+              </td>
             </tr>
           ))}
           {campaign.deliveryWeeks > 0 && (
@@ -145,7 +150,7 @@ function DetailView({ campaign, onBack, onEdit, onDelete }) {
   );
 }
 
-export default function CampaignTable({ campaigns, selectedId, onSelect, onEdit, onDelete, onAdd }) {
+export default function CampaignTable({ campaigns, selectedId, liveSteps, onSelect, onEdit, onDelete, onAdd }) {
   const selected = selectedId ? campaigns.find(c => c.id === selectedId) : null;
 
   return (
@@ -153,6 +158,7 @@ export default function CampaignTable({ campaigns, selectedId, onSelect, onEdit,
       {selected ? (
         <DetailView
           campaign={selected}
+          liveSteps={liveSteps}
           onBack={() => onSelect(null)}
           onEdit={onEdit}
           onDelete={onDelete}

@@ -16,6 +16,7 @@ export default function PlannerApp() {
   const [selectedId, setSelectedId] = useState(null);
   // null = panel closed; 'add' = new; campaign object = edit mode
   const [panelMode, setPanelMode] = useState(null);
+  const [liveSteps, setLiveSteps] = useState(null);
 
   const selectedCampaign = selectedId ? campaigns.find(c => c.id === selectedId) : null;
 
@@ -96,12 +97,14 @@ export default function PlannerApp() {
         selectedId={selectedId}
         onSelect={setSelectedId}
         onUpdateSteps={handleUpdateSteps}
+        onDragUpdate={setLiveSteps}
       />
 
       {/* Table */}
       <CampaignTable
         campaigns={enriched}
         selectedId={selectedId}
+        liveSteps={liveSteps}
         onSelect={setSelectedId}
         onEdit={handleEditClick}
         onDelete={handleDeleteClick}

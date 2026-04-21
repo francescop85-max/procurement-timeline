@@ -103,7 +103,7 @@ function Tooltip({ tip }) {
   );
 }
 
-export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpdateSteps }) {
+export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpdateSteps, onDragUpdate }) {
   const [tip, setTip] = useState(null);
   const [hoveredRow, setHoveredRow] = useState(null);
   // stepOffsets[i] = ms delta applied to step i (and all steps after it when dragged)
@@ -116,6 +116,7 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
     setStepOffsets([]);
     setDragging(null);
     setTip(null);
+    onDragUpdate?.(null);
   }, [selectedId]);
 
   function showTip(e, lines) { setTip({ x: e.clientX, y: e.clientY, lines }); }
@@ -169,30 +170,9 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
       });
     }
 
-    function onSvgMouseMove(e) {
-      if (!dragging || !svgRef.current) return;
-      const svgWidth = svgRef.current.getBoundingClientRect().width;
-      const svgScale = SVG_W / (svgWidth || SVG_W);
-      const deltaSvg = (e.clientX - dragging.startClientX) * svgScale;
-      const msPerSvgUnit = (zoomMax - zoomMin) / CHART_W;
-      // Snap to whole days
-      const deltaMs = Math.round(deltaSvg * msPerSvgUnit / MS_PER_DAY) * MS_PER_DAY;
-      const newOffsets = [...dragging.baseOffsets];
-      for (let j = dragging.stepIndex; j < steps.length; j++) {
-        newOffsets[j] = dragging.baseOffsets[j] + deltaMs;
-      }
-      setStepOffsets(newOffsets);
-    }
-
-    function onSvgMouseUp() {
-      if (!dragging) return;
-      setDragging(null);
-    }
-
-    function saveChanges() {
-      if (!onUpdateSteps) return;
-      const updatedSteps = steps.map((step, i) => {
-        const off = stepOffsets[i] || 0;
+    function computeEffectiveSteps(offsets) {
+      return steps.map((step, i) => {
+        const off = offsets[i] || 0;
         if (off === 0) return step;
         return {
           ...step,
@@ -202,12 +182,38 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
           maxEnd:   new Date(toMs(step.maxEnd)   + off).toISOString(),
         };
       });
-      onUpdateSteps(selected.id, updatedSteps);
+    }
+
+    function onSvgMouseMove(e) {
+      if (!dragging || !svgRef.current) return;
+      const svgWidth = svgRef.current.getBoundingClientRect().width;
+      const svgScale = SVG_W / (svgWidth || SVG_W);
+      const deltaSvg = (e.clientX - dragging.startClientX) * svgScale;
+      const msPerSvgUnit = (zoomMax - zoomMin) / CHART_W;
+      const deltaMs = Math.round(deltaSvg * msPerSvgUnit / MS_PER_DAY) * MS_PER_DAY;
+      const newOffsets = [...dragging.baseOffsets];
+      for (let j = dragging.stepIndex; j < steps.length; j++) {
+        newOffsets[j] = dragging.baseOffsets[j] + deltaMs;
+      }
+      setStepOffsets(newOffsets);
+      onDragUpdate?.(computeEffectiveSteps(newOffsets));
+    }
+
+    function onSvgMouseUp() {
+      if (!dragging) return;
+      setDragging(null);
+    }
+
+    function saveChanges() {
+      if (!onUpdateSteps) return;
+      onUpdateSteps(selected.id, computeEffectiveSteps(stepOffsets));
       setStepOffsets([]);
+      onDragUpdate?.(null);
     }
 
     function resetChanges() {
       setStepOffsets([]);
+      onDragUpdate?.(null);
     }
 
     return (
