@@ -27,6 +27,12 @@ export default function PlannerApp() {
     setPanelMode(campaign);
   }
 
+  async function handleUpdateSteps(campaignId, updatedSteps) {
+    const base = campaigns.find(c => c.id === campaignId);
+    if (!base) return;
+    await saveCampaign({ ...base, steps: updatedSteps, updatedAt: new Date().toISOString() });
+  }
+
   async function handleDeleteClick(id) {
     if (!window.confirm('Remove this campaign?')) return;
     await deleteCampaign(id);
@@ -89,6 +95,7 @@ export default function PlannerApp() {
         campaigns={enriched}
         selectedId={selectedId}
         onSelect={setSelectedId}
+        onUpdateSteps={handleUpdateSteps}
       />
 
       {/* Table */}

@@ -1,5 +1,5 @@
 // src/planner/PlannerTimeline.jsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { formatDate } from '../utils.js';
 
 const STATUS_COLORS = { on_track: '#4CAF50', at_risk: '#FF9800', overdue: '#e53935' };
@@ -10,6 +10,7 @@ const SVG_W = 960;
 const CHART_W = SVG_W - LABEL_W - 20;
 const PAD_TOP = 24;
 const PAD_BOTTOM = 40;
+const MS_PER_DAY = 86400000;
 
 function toMs(d) { return new Date(d).getTime(); }
 
@@ -40,7 +41,6 @@ function buildMonths(zoomMin, zoomMax) {
 function GridAndMarkers({ xPos, months, projectEndMap, todayX, svgH }) {
   return (
     <>
-      {/* Month gridlines */}
       {months.map((m, i) => {
         const x = xPos(m.getTime());
         return (
@@ -53,7 +53,6 @@ function GridAndMarkers({ xPos, months, projectEndMap, todayX, svgH }) {
         );
       })}
 
-      {/* Project end date dashed lines */}
       {Object.entries(projectEndMap).map(([dateStr, color]) => {
         const x = xPos(toMs(dateStr));
         if (x < LABEL_W || x > SVG_W) return null;
@@ -64,14 +63,11 @@ function GridAndMarkers({ xPos, months, projectEndMap, todayX, svgH }) {
             <text x={x} y={svgH - PAD_BOTTOM + 12} fontSize={8} fill={color} textAnchor="middle" fontWeight={600}>
               {new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
             </text>
-            <text x={x} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill={color} textAnchor="middle">
-              proj. end
-            </text>
+            <text x={x} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill={color} textAnchor="middle">proj. end</text>
           </g>
         );
       })}
 
-      {/* Today marker */}
       {todayX >= LABEL_W && todayX <= SVG_W && (
         <g>
           <line x1={todayX} x2={todayX} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
@@ -83,7 +79,6 @@ function GridAndMarkers({ xPos, months, projectEndMap, todayX, svgH }) {
   );
 }
 
-// Small vertical tick with a date label below a bar
 function DateTick({ x, y, label, color = '#555' }) {
   return (
     <g>
@@ -108,16 +103,23 @@ function Tooltip({ tip }) {
   );
 }
 
-export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
+export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpdateSteps }) {
   const [tip, setTip] = useState(null);
   const [hoveredRow, setHoveredRow] = useState(null);
+  // stepOffsets[i] = ms delta applied to step i (and all steps after it when dragged)
+  const [stepOffsets, setStepOffsets] = useState([]);
+  const [dragging, setDragging] = useState(null); // { stepIndex, startClientX, baseOffsets }
+  const svgRef = useRef(null);
 
-  function showTip(e, lines) {
-    setTip({ x: e.clientX, y: e.clientY, lines });
-  }
-  function moveTip(e) {
-    setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null);
-  }
+  // Reset drag state when selection changes
+  useEffect(() => {
+    setStepOffsets([]);
+    setDragging(null);
+    setTip(null);
+  }, [selectedId]);
+
+  function showTip(e, lines) { setTip({ x: e.clientX, y: e.clientY, lines }); }
+  function moveTip(e) { setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null); }
   function hideTip() { setTip(null); }
 
   if (!campaigns || campaigns.length === 0) {
@@ -136,8 +138,15 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
     const steps = selected.steps;
     const color = STATUS_COLORS[selected.status] || '#4CAF50';
 
-    const zoomMin = toMs(selected.prDeadline);
-    const zoomMax = toMs(selected.plantingDate);
+    // Compute effective step ms values with offsets applied
+    function effMs(stepDate, stepIndex) {
+      return toMs(stepDate) + (stepOffsets[stepIndex] || 0);
+    }
+
+    // Widen zoom to accommodate dragged bars
+    const allStepMs = steps.flatMap((s, i) => [effMs(s.minStart, i), effMs(s.maxEnd, i)]);
+    const zoomMin = Math.min(toMs(selected.prDeadline), ...allStepMs);
+    const zoomMax = Math.max(toMs(selected.plantingDate), ...allStepMs);
     const xPos = buildXPos(zoomMin, zoomMax);
     const projectEndMap = buildProjectEndMap([selected]);
     const months = buildMonths(zoomMin, zoomMax);
@@ -145,18 +154,83 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
     const poX = selected.poDeadline ? xPos(toMs(selected.poDeadline)) : null;
     const plantX = xPos(toMs(selected.plantingDate));
 
-    const extraRows = (selected.deliveryWeeks > 0 ? 1 : 0) + 1; // delivery + planting
+    const extraRows = (selected.deliveryWeeks > 0 ? 1 : 0) + 1;
     const svgH = PAD_TOP + (steps.length + extraRows) * ROW_H + PAD_BOTTOM;
+    const isDirty = stepOffsets.some(o => o !== 0);
+
+    function startDrag(e, stepIndex) {
+      e.preventDefault();
+      e.stopPropagation();
+      hideTip();
+      setDragging({
+        stepIndex,
+        startClientX: e.clientX,
+        baseOffsets: stepOffsets.length ? [...stepOffsets] : new Array(steps.length).fill(0),
+      });
+    }
+
+    function onSvgMouseMove(e) {
+      if (!dragging || !svgRef.current) return;
+      const svgWidth = svgRef.current.getBoundingClientRect().width;
+      const svgScale = SVG_W / (svgWidth || SVG_W);
+      const deltaSvg = (e.clientX - dragging.startClientX) * svgScale;
+      const msPerSvgUnit = (zoomMax - zoomMin) / CHART_W;
+      // Snap to whole days
+      const deltaMs = Math.round(deltaSvg * msPerSvgUnit / MS_PER_DAY) * MS_PER_DAY;
+      const newOffsets = [...dragging.baseOffsets];
+      for (let j = dragging.stepIndex; j < steps.length; j++) {
+        newOffsets[j] = dragging.baseOffsets[j] + deltaMs;
+      }
+      setStepOffsets(newOffsets);
+    }
+
+    function onSvgMouseUp() {
+      if (!dragging) return;
+      setDragging(null);
+    }
+
+    function saveChanges() {
+      if (!onUpdateSteps) return;
+      const updatedSteps = steps.map((step, i) => {
+        const off = stepOffsets[i] || 0;
+        if (off === 0) return step;
+        return {
+          ...step,
+          minStart: new Date(toMs(step.minStart) + off).toISOString(),
+          maxStart: new Date(toMs(step.maxStart) + off).toISOString(),
+          minEnd:   new Date(toMs(step.minEnd)   + off).toISOString(),
+          maxEnd:   new Date(toMs(step.maxEnd)   + off).toISOString(),
+        };
+      });
+      onUpdateSteps(selected.id, updatedSteps);
+      setStepOffsets([]);
+    }
+
+    function resetChanges() {
+      setStepOffsets([]);
+    }
 
     return (
       <div className="planner-timeline-section">
-        <Tooltip tip={tip} />
+        <Tooltip tip={dragging ? null : tip} />
         <div className="planner-timeline-header">
           <div className="planner-timeline-title">🌾 {selected.cropName} — Procurement Steps</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10, color: '#888' }}>
             <span>PR: <strong>{formatDate(new Date(selected.prDeadline))}</strong></span>
             {selected.poDeadline && <span>PO by: <strong style={{ color: '#e65100' }}>{formatDate(new Date(selected.poDeadline))}</strong></span>}
             <span>Planting: <strong style={{ color: '#2e7d32' }}>{formatDate(new Date(selected.plantingDate))}</strong></span>
+            {isDirty && (
+              <>
+                <button onClick={saveChanges}
+                  style={{ fontSize: 10, color: '#fff', background: '#2e7d32', border: 'none', cursor: 'pointer', padding: '2px 8px', borderRadius: 3 }}>
+                  Save changes
+                </button>
+                <button onClick={resetChanges}
+                  style={{ fontSize: 10, color: '#666', background: 'none', border: '1px solid #ccc', cursor: 'pointer', padding: '2px 8px', borderRadius: 3 }}>
+                  Reset
+                </button>
+              </>
+            )}
             <button onClick={() => onSelect(null)}
               style={{ fontSize: 10, color: '#1565c0', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
               ← All campaigns
@@ -164,10 +238,18 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
           </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <svg viewBox={`0 0 ${SVG_W} ${svgH}`} width="100%" style={{ minWidth: 500, display: 'block' }} preserveAspectRatio="none">
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${SVG_W} ${svgH}`}
+            width="100%"
+            style={{ minWidth: 500, display: 'block', cursor: dragging ? 'grabbing' : 'default', userSelect: 'none' }}
+            preserveAspectRatio="none"
+            onMouseMove={onSvgMouseMove}
+            onMouseUp={onSvgMouseUp}
+            onMouseLeave={onSvgMouseUp}
+          >
             <GridAndMarkers xPos={xPos} months={months} projectEndMap={projectEndMap} todayX={todayX} svgH={svgH} />
 
-            {/* PO date vertical line */}
             {poX && (
               <g>
                 <line x1={poX} x2={poX} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
@@ -179,7 +261,6 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
               </g>
             )}
 
-            {/* Planting date vertical line */}
             <g>
               <line x1={plantX} x2={plantX} y1={PAD_TOP} y2={svgH - PAD_BOTTOM}
                 stroke="#2e7d32" strokeWidth={2} opacity={0.8} />
@@ -189,34 +270,41 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
               <text x={plantX} y={svgH - PAD_BOTTOM + 22} fontSize={7} fill="#2e7d32" textAnchor="middle">🌱 planting</text>
             </g>
 
-            {/* Step rows */}
             {steps.map((step, i) => {
               const y = PAD_TOP + i * ROW_H;
-              const minX = xPos(step.minStart instanceof Date ? step.minStart.getTime() : toMs(step.minStart));
-              const maxX = xPos(step.maxEnd instanceof Date ? step.maxEnd.getTime() : toMs(step.maxEnd));
+              const minX = xPos(effMs(step.minStart, i));
+              const maxX = xPos(effMs(step.maxEnd, i));
               const barW = Math.max(2, maxX - minX);
+              const isBeingDragged = dragging?.stepIndex <= i;
+              const effectiveMinEnd = new Date(effMs(step.minEnd, i));
+              const effectiveMaxEnd = new Date(effMs(step.maxEnd, i));
               const tipLines = [
                 `${i + 1}. ${step.name}`,
                 `Owner: ${step.owner}`,
-                `Duration: ${step.minDays === step.maxDays ? step.minDays : `${step.minDays}–${step.maxDays}`} ${step.calendarDays ? 'calendar' : 'working'} days`,
-                step.minEnd ? `Earliest end: ${formatDate(new Date(step.minEnd))}` : '',
-                step.maxEnd ? `Latest end: ${formatDate(new Date(step.maxEnd))}` : '',
-              ].filter(Boolean);
+                `Duration: ${step.minDays === step.maxDays ? step.minDays : `${step.minDays}–${step.maxDays}`} ${step.calendarDays ? 'cal' : 'working'} days`,
+                `Earliest end: ${formatDate(effectiveMinEnd)}`,
+                `Latest end: ${formatDate(effectiveMaxEnd)}`,
+              ];
               return (
-                <g key={i} style={{ cursor: 'default' }}
-                  onMouseEnter={e => { setHoveredRow(i); showTip(e, tipLines); }}
-                  onMouseMove={moveTip}
+                <g key={i}
+                  onMouseEnter={e => { if (!dragging) { setHoveredRow(i); showTip(e, tipLines); } }}
+                  onMouseMove={e => { if (!dragging) moveTip(e); }}
                   onMouseLeave={() => { setHoveredRow(null); hideTip(); }}>
                   <rect x={0} y={y} width={SVG_W} height={ROW_H}
-                    fill={hoveredRow === i ? 'rgba(46,126,46,0.07)' : 'transparent'} />
+                    fill={hoveredRow === i && !dragging ? 'rgba(46,126,46,0.07)' : 'transparent'} />
                   <text x={8} y={y + 11} fontSize={10} fill="#333">{i + 1}. {step.name}</text>
-                  <text x={8} y={y + 22} fontSize={8} fill="#aaa">{step.owner}</text>
-                  <rect x={minX} y={y + 5} width={barW} height={14} rx={2} fill={color} opacity={0.75} />
+                  <text x={8} y={y + 22} fontSize={8} fill={isBeingDragged ? color : '#aaa'}>{step.owner}</text>
+                  <rect
+                    x={minX} y={y + 4} width={barW} height={16} rx={2}
+                    fill={color}
+                    opacity={isBeingDragged ? 0.95 : 0.75}
+                    style={{ cursor: dragging ? 'grabbing' : 'grab' }}
+                    onMouseDown={e => startDrag(e, i)}
+                  />
                 </g>
               );
             })}
 
-            {/* Delivery row */}
             {selected.deliveryWeeks > 0 && (() => {
               const y = PAD_TOP + steps.length * ROW_H;
               const startX = poX || plantX;
@@ -229,7 +317,6 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
               );
             })()}
 
-            {/* Planting row */}
             {(() => {
               const i = steps.length + (selected.deliveryWeeks > 0 ? 1 : 0);
               const y = PAD_TOP + i * ROW_H;
@@ -242,7 +329,7 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
             })()}
 
             <text x={8} y={svgH - 6} fontSize={8} fill="#aaa">
-              ■ Step range  | PO deadline  | Planting  ┆ Today  -- Project end
+              {isDirty ? '⚠ Unsaved changes — drag bars to reschedule, then Save' : '⟵ Drag bars to reschedule steps (cascades forward)'}
             </text>
           </svg>
         </div>
@@ -277,8 +364,8 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
           {campaigns.map((c, row) => {
             const y = PAD_TOP + row * ROW_H;
             const color = STATUS_COLORS[c.status] || '#4CAF50';
-            const prX  = xPos(toMs(c.prDeadline));
-            const poX  = c.poDeadline  ? xPos(toMs(c.poDeadline))  : null;
+            const prX   = xPos(toMs(c.prDeadline));
+            const poX   = c.poDeadline ? xPos(toMs(c.poDeadline)) : null;
             const plantX = xPos(toMs(c.plantingDate));
             const barEndX = poX || plantX;
             const tipLines = [
@@ -297,8 +384,6 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
                 onMouseLeave={() => { setHoveredRow(null); hideTip(); }}>
                 <rect x={0} y={y} width={SVG_W} height={ROW_H}
                   fill={hoveredRow === c.id ? 'rgba(46,126,46,0.07)' : 'transparent'} />
-
-                {/* Label */}
                 <text x={8} y={y + 11} fontSize={11} fontWeight={600}
                   fill={c.status === 'overdue' ? '#c62828' : '#1a3a2a'}>{c.cropName}</text>
                 <text x={8} y={y + 22} fontSize={8} fill="#999">
@@ -306,19 +391,11 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
                   {c.poDeadline ? `  PO: ${new Date(c.poDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}` : ''}
                   {'  🌱 '}{new Date(c.plantingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
                 </text>
-
-                {/* Procurement bar (PR → PO) */}
                 <rect x={prX} y={y + 7} width={Math.max(2, barEndX - prX)} height={12} rx={2} fill={color} opacity={0.85} />
-
-                {/* Delivery bar (PO → planting) */}
                 {poX && (
                   <rect x={poX} y={y + 7} width={Math.max(2, plantX - poX)} height={12} rx={2} fill={color} opacity={0.3} />
                 )}
-
-                {/* PO tick */}
                 {poX && <DateTick x={poX} y={y + 7} label={new Date(c.poDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} color="#e65100" />}
-
-                {/* Planting marker */}
                 <rect x={plantX - 2} y={y + 3} width={4} height={ROW_H - 6} rx={1} fill={color} />
               </g>
             );
