@@ -189,7 +189,10 @@ export function computeBackwardTimeline(
   const steps = buildSteps(processKey, activeMods, PROCESSES, MODIFIERS);
 
   if (customModifier && customModifier.label && customModifier.days > 0) {
-    steps.splice(steps.length - 1, 0, {
+    const insertAt = customModifier.position != null && customModifier.position !== ''
+      ? Number(customModifier.position)
+      : steps.length - 1;
+    steps.splice(Math.min(Math.max(0, insertAt), steps.length), 0, {
       name: customModifier.label,
       owner: 'Custom',
       minDays: customModifier.days,

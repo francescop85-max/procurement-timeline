@@ -1,7 +1,7 @@
 // src/planner/CampaignPanel.jsx
 import { useState, useEffect } from 'react';
 import { PROCESSES, MODIFIERS } from '../data.js';
-import { computeBackwardTimeline, computeProjectStatuses, formatDate } from '../utils.js';
+import { computeBackwardTimeline, computeProjectStatuses, formatDate, buildSteps } from '../utils.js';
 import { useHolidays } from '../hooks/useHolidays.js';
 
 function recommendMethod(value, type) {
@@ -26,7 +26,7 @@ const EMPTY_FORM = {
   procurementType: 'goods',
   selectedMethod: '',
   activeMods: [],
-  customModifier: { label: '', days: '' },
+  customModifier: { label: '', days: '', position: '' },
   deliveryWeeks: 2,
   fundingProjects: [],
   remarks: '',
@@ -48,7 +48,7 @@ export default function CampaignPanel({ campaign, onSave, onClose }) {
         procurementType: campaign.procurementType || 'goods',
         selectedMethod: campaign.selectedMethod || '',
         activeMods: campaign.activeMods || [],
-        customModifier: campaign.customModifier || { label: '', days: '' },
+        customModifier: campaign.customModifier || { label: '', days: '', position: '' },
         deliveryWeeks: campaign.deliveryWeeks ?? 2,
         fundingProjects: campaign.fundingProjects || [],
         remarks: campaign.remarks || '',
@@ -65,7 +65,7 @@ export default function CampaignPanel({ campaign, onSave, onClose }) {
       return;
     }
     const customMod = form.customModifier.label && form.customModifier.days > 0
-      ? { label: form.customModifier.label, days: Number(form.customModifier.days) }
+      ? { label: form.customModifier.label, days: Number(form.customModifier.days), position: form.customModifier.position !== '' ? Number(form.customModifier.position) : undefined }
       : null;
     try {
       const result = computeBackwardTimeline(
@@ -115,7 +115,7 @@ export default function CampaignPanel({ campaign, onSave, onClose }) {
     const method = overrideMethod ? form.selectedMethod : (recommendMethod(form.estimatedValue, form.procurementType) || form.selectedMethod);
     if (!form.cropName || !form.plantingDate || !method) return;
     const customMod = form.customModifier.label && form.customModifier.days > 0
-      ? { label: form.customModifier.label, days: Number(form.customModifier.days) }
+      ? { label: form.customModifier.label, days: Number(form.customModifier.days), position: form.customModifier.position !== '' ? Number(form.customModifier.position) : undefined }
       : null;
     onSave({
       id: campaign?.id,
@@ -230,10 +230,25 @@ export default function CampaignPanel({ campaign, onSave, onClose }) {
       <div className="panel-field">
         <div className="panel-label">Custom Step (optional)</div>
         <input className="panel-input" style={{ marginBottom: 5 }} placeholder="Step label" value={form.customModifier.label} onChange={e => set('customModifier', { ...form.customModifier, label: e.target.value })} />
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
           <input className="panel-input" type="number" min="1" style={{ width: 70 }} placeholder="Days" value={form.customModifier.days} onChange={e => set('customModifier', { ...form.customModifier, days: e.target.value })} />
-          <span style={{ fontSize: 11, color: '#888' }}>working days (inserted before final step)</span>
+          <span style={{ fontSize: 11, color: '#888' }}>working days</span>
         </div>
+        {activeMethod && PROCESSES[activeMethod] && (
+          <div>
+            <div style={{ fontSize: 10, color: '#555', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>Insert after</div>
+            <select
+              className="panel-input"
+              value={form.customModifier.position}
+              onChange={e => set('customModifier', { ...form.customModifier, position: e.target.value })}
+            >
+              <option value="">— Before first step —</option>
+              {buildSteps(activeMethod, form.activeMods, PROCESSES, MODIFIERS).map((s, i) => (
+                <option key={i} value={i + 1}>After step {i + 1}: {s.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="panel-field">
