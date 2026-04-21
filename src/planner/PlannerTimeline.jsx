@@ -1,4 +1,5 @@
 // src/planner/PlannerTimeline.jsx
+import { useState } from 'react';
 import { formatDate } from '../utils.js';
 
 const STATUS_COLORS = { on_track: '#4CAF50', at_risk: '#FF9800', overdue: '#e53935' };
@@ -92,7 +93,33 @@ function DateTick({ x, y, label, color = '#555' }) {
   );
 }
 
+function Tooltip({ tip }) {
+  if (!tip) return null;
+  return (
+    <div style={{
+      position: 'fixed', left: tip.x + 12, top: tip.y - 8,
+      background: 'rgba(20,40,20,0.92)', color: '#fff',
+      padding: '6px 10px', borderRadius: 5, fontSize: 11,
+      pointerEvents: 'none', zIndex: 9999, maxWidth: 220,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.3)', lineHeight: 1.5,
+    }}>
+      {tip.lines.map((l, i) => <div key={i}>{l}</div>)}
+    </div>
+  );
+}
+
 export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
+  const [tip, setTip] = useState(null);
+  const [hoveredRow, setHoveredRow] = useState(null);
+
+  function showTip(e, lines) {
+    setTip({ x: e.clientX, y: e.clientY, lines });
+  }
+  function moveTip(e) {
+    setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null);
+  }
+  function hideTip() { setTip(null); }
+
   if (!campaigns || campaigns.length === 0) {
     return (
       <div className="planner-timeline-section">
@@ -123,6 +150,7 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
 
     return (
       <div className="planner-timeline-section">
+        <Tooltip tip={tip} />
         <div className="planner-timeline-header">
           <div className="planner-timeline-title">🌾 {selected.cropName} — Procurement Steps</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10, color: '#888' }}>
@@ -167,8 +195,20 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
               const minX = xPos(step.minStart instanceof Date ? step.minStart.getTime() : toMs(step.minStart));
               const maxX = xPos(step.maxEnd instanceof Date ? step.maxEnd.getTime() : toMs(step.maxEnd));
               const barW = Math.max(2, maxX - minX);
+              const tipLines = [
+                `${i + 1}. ${step.name}`,
+                `Owner: ${step.owner}`,
+                `Duration: ${step.minDays === step.maxDays ? step.minDays : `${step.minDays}–${step.maxDays}`} ${step.calendarDays ? 'calendar' : 'working'} days`,
+                step.minEnd ? `Earliest end: ${formatDate(new Date(step.minEnd))}` : '',
+                step.maxEnd ? `Latest end: ${formatDate(new Date(step.maxEnd))}` : '',
+              ].filter(Boolean);
               return (
-                <g key={i}>
+                <g key={i} style={{ cursor: 'default' }}
+                  onMouseEnter={e => { setHoveredRow(i); showTip(e, tipLines); }}
+                  onMouseMove={moveTip}
+                  onMouseLeave={() => { setHoveredRow(null); hideTip(); }}>
+                  <rect x={0} y={y} width={SVG_W} height={ROW_H}
+                    fill={hoveredRow === i ? 'rgba(46,126,46,0.07)' : 'transparent'} />
                   <text x={8} y={y + 11} fontSize={10} fill="#333">{i + 1}. {step.name}</text>
                   <text x={8} y={y + 22} fontSize={8} fill="#aaa">{step.owner}</text>
                   <rect x={minX} y={y + 5} width={barW} height={14} rx={2} fill={color} opacity={0.75} />
@@ -221,6 +261,7 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
 
   return (
     <div className="planner-timeline-section">
+      <Tooltip tip={tip} />
       <div className="planner-timeline-header">
         <div className="planner-timeline-title">
           Agricultural Calendar — {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}
@@ -240,10 +281,22 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect }) {
             const poX  = c.poDeadline  ? xPos(toMs(c.poDeadline))  : null;
             const plantX = xPos(toMs(c.plantingDate));
             const barEndX = poX || plantX;
+            const tipLines = [
+              c.cropName,
+              `PR by: ${formatDate(new Date(c.prDeadline))}`,
+              c.poDeadline ? `PO by: ${formatDate(new Date(c.poDeadline))}` : null,
+              `Planting: ${formatDate(new Date(c.plantingDate))}`,
+              `Status: ${c.status?.replace('_', ' ')}`,
+            ].filter(Boolean);
 
             return (
-              <g key={c.id} style={{ cursor: 'pointer' }} onClick={() => onSelect(c.id)}>
-                <rect x={0} y={y} width={SVG_W} height={ROW_H} fill="transparent" />
+              <g key={c.id} style={{ cursor: 'pointer' }}
+                onClick={() => onSelect(c.id)}
+                onMouseEnter={e => { setHoveredRow(c.id); showTip(e, tipLines); }}
+                onMouseMove={moveTip}
+                onMouseLeave={() => { setHoveredRow(null); hideTip(); }}>
+                <rect x={0} y={y} width={SVG_W} height={ROW_H}
+                  fill={hoveredRow === c.id ? 'rgba(46,126,46,0.07)' : 'transparent'} />
 
                 {/* Label */}
                 <text x={8} y={y + 11} fontSize={11} fontWeight={600}

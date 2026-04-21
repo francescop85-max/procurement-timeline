@@ -45,7 +45,8 @@
   border-bottom: 2px solid #c8dcc8;
   padding: 14px 20px;
   flex-shrink: 0;
-  overflow-x: auto;
+  max-height: 48vh;
+  overflow: auto;
 }
 
 .planner-timeline-header {
