@@ -114,8 +114,8 @@ function DetailView({ campaign, onBack, onEdit, onDelete }) {
               <td>{step.name}</td>
               <td style={{ color: '#888' }}>{step.owner}</td>
               <td>{step.minDays === step.maxDays ? step.minDays : `${step.minDays}–${step.maxDays}`}{step.calendarDays ? ' cal' : ''}</td>
-              <td>{step.minEnd ? formatDate(step.minEnd) : '—'}</td>
-              <td>{step.maxEnd ? formatDate(step.maxEnd) : '—'}</td>
+              <td>{step.minEnd ? formatDate(new Date(step.minEnd)) : '—'}</td>
+              <td>{step.maxEnd ? formatDate(new Date(step.maxEnd)) : '—'}</td>
             </tr>
           ))}
           {campaign.deliveryWeeks > 0 && (
