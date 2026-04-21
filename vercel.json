@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/planner", "destination": "/planner.html" },
+    { "source": "/planner/(.*)", "destination": "/planner.html" }
+  ]
+}
