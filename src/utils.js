@@ -67,16 +67,126 @@ export function buildSteps(procKey, activeMods, PROCESSES, MODIFIERS) {
   return steps;
 }
 
+export function addCalendarDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 export function computeTimeline(steps, startDate, holidays = new Set()) {
   let minCur = new Date(startDate);
   let maxCur = new Date(startDate);
   return steps.map(step => {
     const minStart = new Date(minCur);
     const maxStart = new Date(maxCur);
-    const minEnd = addWorkingDays(minStart, step.minDays, holidays);
-    const maxEnd = addWorkingDays(maxStart, step.maxDays, holidays);
+    const addDays = step.calendarDays
+      ? (d, n) => addCalendarDays(d, n)
+      : (d, n) => addWorkingDays(d, n, holidays);
+    const minEnd = addDays(minStart, step.minDays);
+    const maxEnd = addDays(maxStart, step.maxDays);
     minCur = new Date(minEnd);
     maxCur = new Date(maxEnd);
     return { ...step, minStart, maxStart, minEnd, maxEnd };
   });
+}
+
+// ── Tracking / Monitor utilities ────────────────────────────────────────────
+
+/**
+ * Rolling-forecast timeline: completed steps use their actual end date as the
+ * cursor for downstream steps. Future steps cascade pessimistically (maxDays).
+ * Returns the same shape as computeTimeline, plus `locked` and `actualEnd`.
+ */
+export function computeTrackingTimeline(steps, prDate, actuals = {}, holidays = new Set()) {
+  let cursor = new Date(prDate);
+  // Also keep a min-cursor for the optimistic path on unlocked steps
+  let minCursor = new Date(prDate);
+
+  return steps.map((step, i) => {
+    const actual = actuals[i];
+    const addDays = step.calendarDays
+      ? (d, n) => addCalendarDays(d, n)
+      : (d, n) => addWorkingDays(d, n, holidays);
+
+    if (actual?.actualEnd) {
+      const actualEndDate = new Date(actual.actualEnd);
+      const result = {
+        ...step,
+        minStart: new Date(cursor),
+        maxStart: new Date(cursor),
+        minEnd: actualEndDate,
+        maxEnd: actualEndDate,
+        actualEnd: actualEndDate,
+        locked: true,
+      };
+      cursor = actualEndDate;
+      minCursor = actualEndDate;
+      return result;
+    } else {
+      const minEnd = addDays(new Date(minCursor), step.minDays);
+      const maxEnd = addDays(new Date(cursor), step.maxDays);
+      const result = {
+        ...step,
+        minStart: new Date(minCursor),
+        maxStart: new Date(cursor),
+        minEnd,
+        maxEnd,
+        locked: false,
+      };
+      minCursor = minEnd;
+      cursor = maxEnd;
+      return result;
+    }
+  });
+}
+
+/** Derive per-step status for display in the tracking table. */
+export function deriveStepStatus(step, today) {
+  if (step.locked) {
+    // Compare actual against original planned maxEnd stored in step
+    return step.actualEnd <= step._originalMaxEnd ? 'on_time' : 'late';
+  }
+  if (today <= step.minEnd) return 'not_started';
+  if (today <= step.maxEnd) return 'in_progress';
+  return 'overdue';
+}
+
+/**
+ * Compare the last step's maxEnd in the tracking timeline vs the original
+ * planned timeline to derive overall procurement status.
+ */
+export function computeOverallStatus(trackingTimeline, originalTimeline, today) {
+  const allDone = trackingTimeline.every(s => s.locked);
+  const lastTracked = trackingTimeline[trackingTimeline.length - 1].maxEnd;
+  const lastOriginal = originalTimeline[originalTimeline.length - 1].maxEnd;
+
+  if (allDone) return { type: 'completed', delayDays: 0 };
+
+  // Count working days difference (positive = delay, negative = ahead)
+  const delta = countWorkingDays(lastOriginal, lastTracked);
+  if (delta <= 0) return { type: 'on_track', aheadDays: Math.abs(delta) };
+  return { type: 'delayed', delayDays: delta };
+}
+
+/** Stable short ID for a plan config — used as localStorage key. */
+export function derivePlanId(cfg) {
+  const raw = [cfg.selected, cfg.prDate, ...(cfg.activeMods || [])].join('|');
+  // Simple deterministic hash (djb2)
+  let h = 5381;
+  for (let i = 0; i < raw.length; i++) h = ((h << 5) + h) ^ raw.charCodeAt(i);
+  return (h >>> 0).toString(36);
+}
+
+/** Encode a plan snapshot into a URL-safe base64 string. */
+export function encodePlanToHash(snapshot) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(snapshot))));
+}
+
+/** Decode a plan snapshot from a base64 string. Returns null on failure. */
+export function decodePlanFromHash(str) {
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(str))));
+  } catch {
+    return null;
+  }
 }

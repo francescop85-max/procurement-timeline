@@ -4,12 +4,12 @@ export const FAO_BLUE = "#009FDA";
 export const PROCESSES = {
   very_low: {
     label: "Very Low Value", threshold: "< USD 1,000",
-    description: "Simplified purchase. No formal solicitation required. Direct award with budget holder approval.",
+    description: "Simplified purchase. No formal solicitation required. Direct award with budget holder approval. A PO is not mandatory — for non-recurrent purchases, a Low Value Order (LVO) or simple approval record is sufficient.",
     color: "#5ba4d4",
     steps: [
-      { name: "Review & Approval of PR by Budget Holder", owner: "Budget Holder", minDays: 1, maxDays: 2, notes: "Budget availability confirmed." },
-      { name: "Identification of vendor & price check", owner: "Buyer", minDays: 1, maxDays: 2, notes: "Single source acceptable at this value." },
-      { name: "LVO / PO preparation and issuance", owner: "Buyer / Authorized Official", minDays: 1, maxDays: 2, notes: "Low Value Order or PO issued." },
+      { name: "Review & Approval of PR by Budget Holder", owner: "Budget Holder", minDays: 1, maxDays: 1, notes: "Budget availability confirmed." },
+      { name: "Identification of vendor & price check", owner: "Buyer", minDays: 1, maxDays: 1, notes: "Single source acceptable at this value." },
+      { name: "LVO / PO preparation and issuance (if required)", owner: "Buyer / Authorized Official", minDays: 0, maxDays: 1, notes: "PO is not mandatory. A Low Value Order (LVO) or simple written record suffices for non-recurrent purchases. PO only required if purchase is recurrent or vendor requires it." },
     ]
   },
   micro: {
@@ -17,9 +17,9 @@ export const PROCESSES = {
     description: "At least 3 sources solicited via email or phone. Micro Purchase Canvassing Form must be prepared to summarize results.",
     color: "#3a8bbf",
     steps: [
-      { name: "Review & Approval of PR by Procurement Officer", owner: "Procurement Officer / Budget Holder", minDays: 1, maxDays: 2, notes: "Adequacy of specs and fund availability checked." },
-      { name: "Solicitation of at least 3 sources (email/phone)", owner: "Buyer", minDays: 2, maxDays: 5, notes: "Minimum 3 sources contacted. Responses collected via email or phone." },
-      { name: "Preparation of Micro Purchase Canvassing Form", owner: "Buyer", minDays: 1, maxDays: 2, notes: "Form summarises all quotes received and justifies selection." },
+      { name: "Review & Approval of PR by Procurement Officer", owner: "Procurement Officer / Budget Holder", minDays: 1, maxDays: 1, notes: "Adequacy of specs and fund availability checked." },
+      { name: "Solicitation of at least 3 sources (email/phone)", owner: "Buyer", minDays: 1, maxDays: 2, notes: "Minimum 3 sources contacted. Responses collected via email or phone." },
+      { name: "Preparation of Micro Purchase Canvassing Form", owner: "Buyer", minDays: 0, maxDays: 1, notes: "Form summarises all quotes received and justifies selection. Can be completed same day quotes are received." },
       { name: "Award decision & PO issuance", owner: "Buyer / Authorized Official", minDays: 1, maxDays: 2, notes: "Award to lowest compliant quote. PO issued." },
     ]
   },
@@ -28,13 +28,12 @@ export const PROCESSES = {
     description: "Informal but structured. At least 3 sources via formal RFQ template, sent through UNGM (restricted list) or FAOUA-tender email.",
     color: "#1e72aa",
     steps: [
-      { name: "Review of PR & preparation of RFQ document", owner: "Procurement Officer / Buyer", minDays: 2, maxDays: 4, notes: "Formal RFQ template must be used. Specs clearly defined." },
+      { name: "Review of PR & preparation of RFQ document", owner: "Procurement Officer / Buyer", minDays: 2, maxDays: 3, notes: "Formal RFQ template must be used. Specs clearly defined." },
       { name: "Issuance of RFQ to at least 3 vendors", owner: "Buyer", minDays: 1, maxDays: 1, notes: "Sent via UNGM restricted list or FAOUA-tender email." },
-      { name: "Vendor submission period", owner: "Vendors", minDays: 5, maxDays: 10, notes: "Vendors given min. 5–10 working days to respond." },
-      { name: "Tender opening", owner: "Buyer / Opening Panel", minDays: 1, maxDays: 1, notes: "Formal opening of quotations received. Minutes recorded." },
+      { name: "Vendor submission period", owner: "Vendors", minDays: 5, maxDays: 6, notes: "Vendors given min. 5–6 working days to respond." },
       { name: "Technical evaluation", owner: "Evaluation Panel / Requisitioner", minDays: 2, maxDays: 4, notes: "Technical compliance assessment of all submissions. Led by requisitioner or evaluation panel." },
       { name: "Commercial evaluation", owner: "Buyer / Procurement Officer", minDays: 1, maxDays: 3, notes: "Price-based evaluation and comparison of technically compliant quotations." },
-      { name: "Award recommendation & PO preparation", owner: "Buyer / Procurement Officer", minDays: 2, maxDays: 4, notes: "No LPC review required at this threshold. Summary prepared." },
+      { name: "Award recommendation & PO preparation", owner: "Buyer / Procurement Officer", minDays: 2, maxDays: 3, notes: "No LPC review required at this threshold. Summary prepared." },
       { name: "PO issuance", owner: "Authorized Official", minDays: 1, maxDays: 2, notes: "PO signed and issued to vendor." },
     ]
   },
@@ -45,7 +44,7 @@ export const PROCESSES = {
     steps: [
       { name: "Review of PR & preparation of solicitation documents", owner: "Buyer / Requisitioner", minDays: 4, maxDays: 7, notes: "Detailed specs, BoQ, evaluation criteria defined." },
       { name: "Solicitation issuance (public — UNGM)", owner: "Buyer", minDays: 1, maxDays: 1, notes: "Published publicly via UNGM." },
-      { name: "Bidding / publication period", owner: "Vendors", minDays: 15, maxDays: 21, notes: "Min. 15 working days. Bidders' conference may be organised." },
+      { name: "Bidding / publication period", owner: "Vendors", minDays: 15, maxDays: 21, calendarDays: true, notes: "Min. 15 calendar days. Bidders' conference may be organised." },
       { name: "Tender opening", owner: "Buyer / Opening Panel", minDays: 1, maxDays: 1, notes: "Formal opening. Minutes recorded." },
       { name: "Technical evaluation", owner: "Evaluation Panel / Requisitioner", minDays: 10, maxDays: 20, notes: "Technical compliance assessment. Led by requisitioner/evaluation panel — not procurement." },
       { name: "Commercial evaluation & clearances", owner: "Buyer / Procurement Officer", minDays: 5, maxDays: 10, notes: "Price comparison and compliance review. Clearances obtained by procurement." },
@@ -66,7 +65,7 @@ export const PROCESSES = {
       { name: "Resident Engineer (RE) identification & engagement", owner: "Buyer / Budget Holder", minDays: 5, maxDays: 14, notes: "RE must be identified early to avoid delays at contract start. RE may be FAO staff, consultant, or the firm that prepared the Technical Dossier (if selected competitively from the onset)." },
       { name: "ITB document preparation incl. draft lump sum contract", owner: "Buyer", minDays: 4, maxDays: 7, notes: "Lump sum contract (not re-measurement). ITB includes: Letter of Invitation, Technical Dossier, and draft contract with financial securities clauses (BG/PB/Retention as applicable)." },
       { name: "ITB issuance (public — UNGM)", owner: "Buyer", minDays: 1, maxDays: 1, notes: "Published publicly via UNGM. Must specify whether site visit is mandatory." },
-      { name: "Bidding period incl. pre-bid conference & mandatory site visit", owner: "Vendors / Buyer / RE", minDays: 15, maxDays: 21, notes: "Site visit is a standard requirement for Works. Pre-bid conference clarifies lump sum contract terms, payment milestones, financial securities, and site conditions. Both held during bidding period." },
+      { name: "Bidding period incl. pre-bid conference & mandatory site visit", owner: "Vendors / Buyer / RE", minDays: 15, maxDays: 21, calendarDays: true, notes: "Min. 15 calendar days. Site visit is a standard requirement for Works. Pre-bid conference clarifies lump sum contract terms, payment milestones, financial securities, and site conditions. Both held during bidding period." },
       { name: "Tender opening", owner: "Buyer / Opening Panel", minDays: 1, maxDays: 1, notes: "Formal opening. Minutes recorded." },
       { name: "Technical evaluation", owner: "Evaluation Panel / RE / TCO", minDays: 10, maxDays: 20, notes: "Technical compliance and contractor capacity assessment. Resident Engineer plays a key role. Conflict-of-interest declarations required." },
       { name: "Commercial evaluation & clearances", owner: "Buyer / Procurement Officer", minDays: 5, maxDays: 10, notes: "Price reasonableness check against internal cost estimate. Clearances obtained by procurement." },
@@ -83,7 +82,7 @@ export const PROCESSES = {
       { name: "Review of PR & preparation of draft RFP + evaluation methodology", owner: "Buyer / Requisitioner", minDays: 3, maxDays: 7, notes: "TOR, evaluation criteria, scoring methodology prepared." },
       { name: "LPC ex-ante review of evaluation methodology & criteria", owner: "LPC Members / Procurement Officer", minDays: 5, maxDays: 7, notes: "⚠️ Mandatory for RFP. LPC must approve evaluation criteria BEFORE issuance. Adds ~1 week." },
       { name: "Finalisation and issuance of RFP (public — UNGM)", owner: "Buyer", minDays: 1, maxDays: 2, notes: "Published publicly. Bidders' conference may be organised." },
-      { name: "Submission period (1st Envelope — Technical)", owner: "Vendors", minDays: 21, maxDays: 28, notes: "Min. 21 days. Bidders' conference held to clarify requirements." },
+      { name: "Submission period (1st Envelope — Technical)", owner: "Vendors", minDays: 21, maxDays: 28, calendarDays: true, notes: "Min. 21 calendar days. Bidders' conference held to clarify requirements." },
       { name: "Tender opening (1st Envelope — Technical)", owner: "Buyer / Opening Panel", minDays: 1, maxDays: 1, notes: "Technical envelopes opened and logged." },
       { name: "Technical evaluation", owner: "Evaluation Panel", minDays: 10, maxDays: 20, notes: "Technical scoring and shortlisting. Led by the evaluation panel — not procurement's responsibility." },
       { name: "Clearances (TCO / LTO review)", owner: "TCO / LTO / Procurement Officer", minDays: 3, maxDays: 7, notes: "Technical and legal clearances obtained from relevant FAO offices." },
@@ -190,9 +189,9 @@ export const MODIFIERS = [
 ];
 
 export const QUICK_REF = [
-  ["Very Low Value", "< $1,000", "Direct award", "None", "3–6 days"],
-  ["Micro Purchasing", "$1K – < $5K", "Lowest of 3 quotes", "None (Canvassing Form)", "5–11 days"],
-  ["RFQ", "$5K – < $25K", "Lowest compliant quote", "None (summary required)", "14–27 days"],
+  ["Very Low Value", "< $1,000", "Direct award", "None", "2–3 days"],
+  ["Micro Purchasing", "$1K – < $5K", "Lowest of 3 quotes", "None (Canvassing Form)", "3–6 days"],
+  ["RFQ", "$5K – < $25K", "Lowest compliant quote", "None (summary required)", "14–22 days"],
   ["ITB", "> $25K (goods)", "Lowest compliant bid", "LPC + RPC", "47–81 days"],
   ["RFP", "> $25K (services/complex)", "Best value (tech+fin)", "LPC ex-ante + LPC award", "58–102 days"],
   ["LTA — Fixed Price", "Any (LTA exists)", "Lowest LTA price", "None", "4–10 days"],

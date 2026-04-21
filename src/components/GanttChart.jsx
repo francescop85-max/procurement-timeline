@@ -18,7 +18,7 @@ function getMonthBoundaries(startDate, endDate) {
   return months;
 }
 
-export default function GanttChart({ timeline, proc, prDate, desiredDate, deliveryWeeks, minDeliveryDate, maxDeliveryDate, activeMods, MODIFIERS, status }) {
+export default function GanttChart({ timeline, proc, prDate, desiredDate, deliveryWeeks, minDeliveryDate, maxDeliveryDate, activeMods, MODIFIERS, status, actuals }) {
   if (!timeline || timeline.length === 0) return null;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -110,7 +110,7 @@ export default function GanttChart({ timeline, proc, prDate, desiredDate, delive
         <line x1={LABEL_WIDTH} y1={0} x2={LABEL_WIDTH} y2={svgHeight - 36} stroke="#d8e0ea" strokeWidth={1} />
 
         {/* ── Header labels (drawn after header rect so they're visible) ── */}
-        <text x={8} y={HEADER_HEIGHT / 2 + 4} fontSize={11} fontWeight="700" fill="#1a2e44" fontFamily="Inter, sans-serif">Phase</text>
+        <text x={8} y={HEADER_HEIGHT / 2 + 4} fontSize={11} fontWeight="700" fill="#1a2e44" fontFamily="'IBM Plex Sans', sans-serif">Phase</text>
         {monthBoundaries.map((m, i) => {
           const x = xOf(m);
           if (x <= LABEL_WIDTH) return null;
@@ -120,7 +120,7 @@ export default function GanttChart({ timeline, proc, prDate, desiredDate, delive
           const label = m.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
           return (
             <g key={`mh-${i}`}>
-              <text x={x + Math.min(colW / 2, 30)} y={HEADER_HEIGHT / 2 + 4} fontSize={10} fontWeight="600" fill="#555" fontFamily="Inter, sans-serif">{label}</text>
+              <text x={x + Math.min(colW / 2, 30)} y={HEADER_HEIGHT / 2 + 4} fontSize={10} fontWeight="600" fill="#555" fontFamily="'IBM Plex Sans', sans-serif">{label}</text>
             </g>
           );
         })}
@@ -144,13 +144,27 @@ export default function GanttChart({ timeline, proc, prDate, desiredDate, delive
           return (
             <g key={`row-${i}`}>
               <circle cx={14} cy={y + ROW_HEIGHT / 2} r={9} fill={color} opacity={isLast ? 1 : 0.85} />
-              <text x={14} y={y + ROW_HEIGHT / 2 + 4} textAnchor="middle" fontSize={8} fill="#fff" fontWeight="700" fontFamily="Inter, sans-serif">{i + 1}</text>
-              <text x={28} y={y + ROW_HEIGHT / 2 + 4} fontSize={10} fill={isLast ? '#1a2e44' : '#444'} fontWeight={isLast ? '700' : '500'} fontFamily="Inter, sans-serif">{label}</text>
+              <text x={14} y={y + ROW_HEIGHT / 2 + 4} textAnchor="middle" fontSize={8} fill="#fff" fontWeight="700" fontFamily="'IBM Plex Sans', sans-serif">{i + 1}</text>
+              <text x={28} y={y + ROW_HEIGHT / 2 + 4} fontSize={10} fill={isLast ? '#1a2e44' : '#444'} fontWeight={isLast ? '700' : '500'} fontFamily="'IBM Plex Sans', sans-serif">{label}</text>
               <rect x={xStart} y={barY} width={solidW} height={BAR_HEIGHT} fill={color} rx={2} opacity={0.9} />
               {bufferW > 0 && <rect x={xMinEnd} y={barY} width={bufferW} height={BAR_HEIGHT} fill={color} rx={2} opacity={0.22} />}
               {isLast && xMaxEnd + 60 < svgWidth && (
-                <text x={xMaxEnd + 4} y={barY + BAR_HEIGHT - 1} fontSize={9} fill={proc.color} fontWeight="700" fontFamily="Inter, sans-serif">{formatDate(step.maxEnd)}</text>
+                <text x={xMaxEnd + 4} y={barY + BAR_HEIGHT - 1} fontSize={9} fill={proc.color} fontWeight="700" fontFamily="'IBM Plex Sans', sans-serif">{formatDate(step.maxEnd)}</text>
               )}
+              {/* Actual completion marker */}
+              {actuals?.[i]?.actualEnd && (() => {
+                const actualDate = new Date(actuals[i].actualEnd);
+                const ax = xOf(actualDate);
+                if (ax <= LABEL_WIDTH || ax >= svgWidth) return null;
+                const isOnTime = actualDate <= step.maxEnd;
+                const markerColor = isOnTime ? '#16a34a' : '#dc2626';
+                return (
+                  <g key={`actual-${i}`}>
+                    <line x1={ax} y1={barY - 3} x2={ax} y2={barY + BAR_HEIGHT + 3} stroke={markerColor} strokeWidth={2} />
+                    <circle cx={ax} cy={barY + BAR_HEIGHT / 2} r={4} fill={markerColor} />
+                  </g>
+                );
+              })()}
               <line x1={0} y1={y + ROW_HEIGHT} x2={svgWidth} y2={y + ROW_HEIGHT} stroke="#f0f0f0" strokeWidth={1} />
             </g>
           );
@@ -170,8 +184,8 @@ export default function GanttChart({ timeline, proc, prDate, desiredDate, delive
           return (
             <g key="delivery">
               <circle cx={14} cy={y + ROW_HEIGHT / 2} r={9} fill="#1565c0" />
-              <text x={14} y={y + ROW_HEIGHT / 2 + 4} textAnchor="middle" fontSize={8} fill="#fff" fontWeight="700" fontFamily="Inter, sans-serif">D</text>
-              <text x={28} y={y + ROW_HEIGHT / 2 + 4} fontSize={10} fill="#1565c0" fontWeight="600" fontFamily="Inter, sans-serif">
+              <text x={14} y={y + ROW_HEIGHT / 2 + 4} textAnchor="middle" fontSize={8} fill="#fff" fontWeight="700" fontFamily="'IBM Plex Sans', sans-serif">D</text>
+              <text x={28} y={y + ROW_HEIGHT / 2 + 4} fontSize={10} fill="#1565c0" fontWeight="600" fontFamily="'IBM Plex Sans', sans-serif">
                 Delivery Period ({deliveryWeeks}w)
               </text>
               <rect x={xStart} y={barY} width={solidW} height={BAR_HEIGHT} fill="#1976d2" rx={2} opacity={0.7} />
@@ -189,7 +203,7 @@ export default function GanttChart({ timeline, proc, prDate, desiredDate, delive
             <g key="today">
               <line x1={x} y1={HEADER_HEIGHT} x2={x} y2={HEADER_HEIGHT + totalRows * ROW_HEIGHT} stroke="#1565c0" strokeWidth={1.5} strokeDasharray="4,3" />
               <rect x={x - 16} y={HEADER_HEIGHT + 3} width={32} height={14} fill="#1565c0" rx={3} />
-              <text x={x} y={HEADER_HEIGHT + 13} textAnchor="middle" fontSize={8} fill="#fff" fontWeight="700" fontFamily="Inter, sans-serif">Today</text>
+              <text x={x} y={HEADER_HEIGHT + 13} textAnchor="middle" fontSize={8} fill="#fff" fontWeight="700" fontFamily="'IBM Plex Sans', sans-serif">Today</text>
             </g>
           );
         })()}
@@ -203,7 +217,7 @@ export default function GanttChart({ timeline, proc, prDate, desiredDate, delive
             <g key="deadline">
               <line x1={x} y1={HEADER_HEIGHT} x2={x} y2={HEADER_HEIGHT + totalRows * ROW_HEIGHT} stroke={deadlineColor} strokeWidth={1.5} strokeDasharray="6,3" />
               <rect x={x - 22} y={HEADER_HEIGHT + 3} width={44} height={14} fill={deadlineColor} rx={3} />
-              <text x={x} y={HEADER_HEIGHT + 13} textAnchor="middle" fontSize={8} fill="#fff" fontWeight="700" fontFamily="Inter, sans-serif">Deadline</text>
+              <text x={x} y={HEADER_HEIGHT + 13} textAnchor="middle" fontSize={8} fill="#fff" fontWeight="700" fontFamily="'IBM Plex Sans', sans-serif">Deadline</text>
             </g>
           );
         })()}
@@ -214,15 +228,23 @@ export default function GanttChart({ timeline, proc, prDate, desiredDate, delive
           return (
             <g key="legend">
               <rect x={LABEL_WIDTH} y={ly} width={12} height={9} fill={proc.color} rx={2} opacity={0.9} />
-              <text x={LABEL_WIDTH + 16} y={ly + 8} fontSize={9} fill="#666" fontFamily="Inter, sans-serif">Best case</text>
+              <text x={LABEL_WIDTH + 16} y={ly + 8} fontSize={9} fill="#666" fontFamily="'IBM Plex Sans', sans-serif">Best case</text>
               <rect x={LABEL_WIDTH + 74} y={ly} width={12} height={9} fill={proc.color} rx={2} opacity={0.22} />
-              <text x={LABEL_WIDTH + 90} y={ly + 8} fontSize={9} fill="#666" fontFamily="Inter, sans-serif">Worst case buffer</text>
+              <text x={LABEL_WIDTH + 90} y={ly + 8} fontSize={9} fill="#666" fontFamily="'IBM Plex Sans', sans-serif">Worst case buffer</text>
               <line x1={LABEL_WIDTH + 188} y1={ly + 4} x2={LABEL_WIDTH + 200} y2={ly + 4} stroke="#1565c0" strokeWidth={1.5} strokeDasharray="4,2" />
-              <text x={LABEL_WIDTH + 204} y={ly + 8} fontSize={9} fill="#666" fontFamily="Inter, sans-serif">Today</text>
+              <text x={LABEL_WIDTH + 204} y={ly + 8} fontSize={9} fill="#666" fontFamily="'IBM Plex Sans', sans-serif">Today</text>
               {desiredDate && (
                 <>
                   <line x1={LABEL_WIDTH + 238} y1={ly + 4} x2={LABEL_WIDTH + 250} y2={ly + 4} stroke={deadlineColor} strokeWidth={1.5} strokeDasharray="6,2" />
-                  <text x={LABEL_WIDTH + 254} y={ly + 8} fontSize={9} fill="#666" fontFamily="Inter, sans-serif">Deadline</text>
+                  <text x={LABEL_WIDTH + 254} y={ly + 8} fontSize={9} fill="#666" fontFamily="'IBM Plex Sans', sans-serif">Deadline</text>
+                </>
+              )}
+              {actuals && Object.keys(actuals).length > 0 && (
+                <>
+                  <circle cx={LABEL_WIDTH + 298} cy={ly + 4} r={4} fill="#16a34a" />
+                  <text x={LABEL_WIDTH + 306} y={ly + 8} fontSize={9} fill="#666" fontFamily="'IBM Plex Sans', sans-serif">Actual (on time)</text>
+                  <circle cx={LABEL_WIDTH + 390} cy={ly + 4} r={4} fill="#dc2626" />
+                  <text x={LABEL_WIDTH + 398} y={ly + 8} fontSize={9} fill="#666" fontFamily="'IBM Plex Sans', sans-serif">Actual (late)</text>
                 </>
               )}
             </g>
