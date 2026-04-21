@@ -1,5 +1,5 @@
 // src/planner/PlannerTimeline.jsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { formatDate } from '../utils.js';
 
 const STATUS_COLORS = { on_track: '#4CAF50', at_risk: '#FF9800', overdue: '#e53935' };
@@ -132,6 +132,27 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
     onDragUpdate?.(null);
   }, [selectedId]);
 
+  // Sync effective steps to parent on every offset change (runs after paint, before next frame)
+  const selectedStepsRef = useRef(null);
+  useLayoutEffect(() => {
+    const steps = selectedStepsRef.current;
+    if (!steps || !stepOffsets.some(o => o !== 0)) {
+      onDragUpdate?.(null);
+      return;
+    }
+    onDragUpdate?.(steps.map((step, i) => {
+      const off = stepOffsets[i] || 0;
+      if (off === 0) return step;
+      return {
+        ...step,
+        minStart: new Date(toMs(step.minStart) + off).toISOString(),
+        maxStart: new Date(toMs(step.maxStart) + off).toISOString(),
+        minEnd:   new Date(toMs(step.minEnd)   + off).toISOString(),
+        maxEnd:   new Date(toMs(step.maxEnd)   + off).toISOString(),
+      };
+    }));
+  }, [stepOffsets]);
+
   function showTip(e, lines) { setTip({ x: e.clientX, y: e.clientY, lines }); }
   function moveTip(e) { setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null); }
   function hideTip() { setTip(null); }
@@ -146,6 +167,7 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
   }
 
   const selected = selectedId ? campaigns.find(c => c.id === selectedId) : null;
+  selectedStepsRef.current = selected?.steps ?? null;
 
   // ── DETAIL MODE ───────────────────────────────────────────────────────────
   if (selected && selected.steps && selected.steps.length > 0) {
