@@ -6,7 +6,7 @@ async function readCampaigns() {
   try {
     const meta = await head(BLOB_PATH, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => null);
     if (!meta) return [];
-    const res = await fetch(meta.url);
+    const res = await fetch(meta.downloadUrl);
     if (!res.ok) return [];
     return await res.json();
   } catch {
@@ -16,7 +16,7 @@ async function readCampaigns() {
 
 async function writeCampaigns(campaigns) {
   await put(BLOB_PATH, JSON.stringify(campaigns), {
-    access: "public",
+    access: "private",
     contentType: "application/json",
     addRandomSuffix: false,
     token: process.env.BLOB_READ_WRITE_TOKEN,
