@@ -92,14 +92,8 @@ export function computeTimeline(steps, startDate, holidays = new Set()) {
 
 // ── Tracking / Monitor utilities ────────────────────────────────────────────
 
-/**
- * Rolling-forecast timeline: completed steps use their actual end date as the
- * cursor for downstream steps. Future steps cascade pessimistically (maxDays).
- * Returns the same shape as computeTimeline, plus `locked` and `actualEnd`.
- */
 export function computeTrackingTimeline(steps, prDate, actuals = {}, holidays = new Set()) {
   let cursor = new Date(prDate);
-  // Also keep a min-cursor for the optimistic path on unlocked steps
   let minCursor = new Date(prDate);
 
   return steps.map((step, i) => {
@@ -140,10 +134,8 @@ export function computeTrackingTimeline(steps, prDate, actuals = {}, holidays = 
   });
 }
 
-/** Derive per-step status for display in the tracking table. */
 export function deriveStepStatus(step, today) {
   if (step.locked) {
-    // Compare actual against original planned maxEnd stored in step
     return step.actualEnd <= step._originalMaxEnd ? 'on_time' : 'late';
   }
   if (today <= step.minEnd) return 'not_started';
@@ -151,10 +143,6 @@ export function deriveStepStatus(step, today) {
   return 'overdue';
 }
 
-/**
- * Compare the last step's maxEnd in the tracking timeline vs the original
- * planned timeline to derive overall procurement status.
- */
 export function computeOverallStatus(trackingTimeline, originalTimeline, today) {
   const allDone = trackingTimeline.every(s => s.locked);
   const lastTracked = trackingTimeline[trackingTimeline.length - 1].maxEnd;
@@ -162,31 +150,96 @@ export function computeOverallStatus(trackingTimeline, originalTimeline, today) 
 
   if (allDone) return { type: 'completed', delayDays: 0 };
 
-  // Count working days difference (positive = delay, negative = ahead)
   const delta = countWorkingDays(lastOriginal, lastTracked);
   if (delta <= 0) return { type: 'on_track', aheadDays: Math.abs(delta) };
   return { type: 'delayed', delayDays: delta };
 }
 
-/** Stable short ID for a plan config — used as localStorage key. */
 export function derivePlanId(cfg) {
   const raw = [cfg.selected, cfg.prDate, ...(cfg.activeMods || [])].join('|');
-  // Simple deterministic hash (djb2)
   let h = 5381;
   for (let i = 0; i < raw.length; i++) h = ((h << 5) + h) ^ raw.charCodeAt(i);
   return (h >>> 0).toString(36);
 }
 
-/** Encode a plan snapshot into a URL-safe base64 string. */
 export function encodePlanToHash(snapshot) {
   return btoa(unescape(encodeURIComponent(JSON.stringify(snapshot))));
 }
 
-/** Decode a plan snapshot from a base64 string. Returns null on failure. */
 export function decodePlanFromHash(str) {
   try {
     return JSON.parse(decodeURIComponent(escape(atob(str))));
   } catch {
     return null;
   }
+}
+
+// ── Agricultural Planner utilities ──────────────────────────────────────────
+
+export function computeBackwardTimeline(
+  plantingDate,
+  processKey,
+  activeMods,
+  customModifier,
+  deliveryWeeks,
+  holidays = new Set(),
+  PROCESSES,
+  MODIFIERS,
+) {
+  const steps = buildSteps(processKey, activeMods, PROCESSES, MODIFIERS);
+
+  if (customModifier && customModifier.label && customModifier.days > 0) {
+    steps.splice(steps.length - 1, 0, {
+      name: customModifier.label,
+      owner: 'Custom',
+      minDays: customModifier.days,
+      maxDays: customModifier.days,
+    });
+  }
+
+  let cursor = new Date(plantingDate);
+  cursor.setDate(cursor.getDate() - (deliveryWeeks || 0) * 7);
+  const poDeadline = new Date(cursor);
+
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i];
+    if (step.calendarDays) {
+      cursor.setDate(cursor.getDate() - step.maxDays);
+    } else {
+      cursor = subtractWorkingDays(cursor, step.maxDays, holidays);
+    }
+  }
+
+  const prDeadline = new Date(cursor);
+
+  return {
+    prDeadline: toISO(prDeadline),
+    poDeadline: toISO(poDeadline),
+    deliveryDeadline: toISO(new Date(plantingDate)),
+    steps: computeTimeline(steps, prDeadline, holidays),
+  };
+}
+
+export function computeCampaignStatus(campaign, today = new Date()) {
+  const poDeadline = new Date(campaign.poDeadline);
+  const deliveryDeadline = new Date(campaign.deliveryDeadline);
+  const prDeadline = new Date(campaign.prDeadline);
+
+  const projectEnds = (campaign.fundingProjects || [])
+    .filter(p => p.endDate)
+    .map(p => new Date(p.endDate));
+
+  if (projectEnds.some(end => deliveryDeadline > end)) return 'overdue';
+  if (projectEnds.some(end => poDeadline > end) || today > prDeadline) return 'at_risk';
+  return 'on_track';
+}
+
+export function computeProjectStatuses(campaign) {
+  const poDeadline = new Date(campaign.poDeadline);
+  const deliveryDeadline = new Date(campaign.deliveryDeadline);
+  return (campaign.fundingProjects || []).map(p => {
+    if (!p.endDate) return { ...p, status: 'ok' };
+    const end = new Date(p.endDate);
+    return { ...p, status: poDeadline > end || deliveryDeadline > end ? 'at_risk' : 'ok' };
+  });
 }
