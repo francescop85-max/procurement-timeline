@@ -157,10 +157,12 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
       return toMs(stepDate) + (stepOffsets[stepIndex] || 0);
     }
 
-    // Widen zoom to accommodate dragged bars
+    // Widen zoom to accommodate dragged bars and project end dates
     const allStepMs = steps.flatMap((s, i) => [effMs(s.minStart, i), effMs(s.maxEnd, i)]);
+    const detailProjectEndMs = (selected.fundingProjects || [])
+      .map(p => p.endDate ? toMs(p.endDate) : null).filter(Boolean);
     const zoomMin = Math.min(toMs(selected.prDeadline), ...allStepMs);
-    const zoomMax = Math.max(toMs(selected.plantingDate), ...allStepMs);
+    const zoomMax = Math.max(toMs(selected.plantingDate), ...allStepMs, ...detailProjectEndMs);
     const xPos = buildXPos(zoomMin, zoomMax);
     const projectEndMap = buildProjectEndMap([selected]);
     const months = buildMonths(zoomMin, zoomMax);
@@ -359,8 +361,11 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
   }
 
   // ── OVERVIEW MODE ──────────────────────────────────────────────────────────
+  const projectEndMs = campaigns.flatMap(c =>
+    (c.fundingProjects || []).map(p => p.endDate ? toMs(p.endDate) : null).filter(Boolean)
+  );
   const zoomMin = Math.min(...campaigns.map(c => toMs(c.prDeadline)).filter(Boolean));
-  const zoomMax = Math.max(...campaigns.map(c => toMs(c.plantingDate)).filter(Boolean));
+  const zoomMax = Math.max(...campaigns.map(c => toMs(c.plantingDate)).filter(Boolean), ...projectEndMs);
   const xPos = buildXPos(zoomMin, zoomMax);
   const projectEndMap = buildProjectEndMap(campaigns);
   const months = buildMonths(zoomMin, zoomMax);
