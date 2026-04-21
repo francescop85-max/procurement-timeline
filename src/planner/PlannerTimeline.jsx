@@ -432,9 +432,9 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
                 onMouseLeave={() => { setHoveredRow(null); hideTip(); }}>
                 <rect x={0} y={y} width={SVG_W} height={ROW_H}
                   fill={hoveredRow === c.id ? 'rgba(46,126,46,0.07)' : 'transparent'} />
-                <text x={8} y={y + 11} fontSize={11} fontWeight={600}
+                <text x={8} y={y + 10} fontSize={9} fontWeight={600}
                   fill={c.status === 'overdue' ? '#c62828' : '#1a3a2a'}>{c.cropName}</text>
-                <text x={8} y={y + 22} fontSize={8} fill="#999">
+                <text x={8} y={y + 20} fontSize={7} fill="#999">
                   PR: {new Date(c.prDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                   {c.poDeadline ? `  PO: ${new Date(c.poDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}` : ''}
                   {'  🌱 '}{new Date(c.plantingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
