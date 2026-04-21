@@ -353,3 +353,76 @@
 
 .step-delivery-row td { background: #f1f8e9; color: #388e3c; }
 .step-planting-row td { background: #e8f5e9; font-weight: 700; color: #1a3a2a; border-top: 2px solid #a5d6a7; }
+
+.planner-print-btn {
+  font-size: 11px;
+  color: #fff;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35);
+  padding: 3px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+.planner-print-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* ── Print / PDF ──────────────────────────────────────────────────────────── */
+@media print {
+  @page { size: A4 landscape; margin: 12mm 10mm; }
+
+  /* Reset page layout for print */
+  body, html { height: auto !important; overflow: visible !important; }
+
+  .planner-layout {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Header: keep branding, hide interactive controls */
+  .planner-header {
+    padding: 6px 12px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .planner-header-back,
+  .planner-print-btn { display: none !important; }
+
+  /* Timeline: remove scroll cap, show full SVG */
+  .planner-timeline-section {
+    max-height: none !important;
+    overflow: visible !important;
+    border-bottom: 1px solid #c8dcc8;
+    page-break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Table section: show in full, no scroll */
+  .planner-table-section {
+    overflow: visible !important;
+    page-break-before: auto;
+  }
+
+  /* Hide all action/edit/delete buttons */
+  .action-btn,
+  .detail-back-btn,
+  button.panel-save-btn { display: none !important; }
+
+  /* Hide the side panel and overlay entirely */
+  .planner-panel,
+  .planner-panel-overlay { display: none !important; }
+
+  /* Avoid breaking rows mid-page */
+  .planner-table tr { page-break-inside: avoid; }
+
+  /* Preserve background colours in SVG and pills */
+  .status-pill,
+  .method-tag,
+  .project-tag,
+  .step-delivery-row td,
+  .step-planting-row td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

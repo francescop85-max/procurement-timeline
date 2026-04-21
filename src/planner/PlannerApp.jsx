@@ -88,7 +88,15 @@ export default function PlannerApp() {
       <div className="planner-header">
         <span style={{ fontSize: 18 }}>🌱</span>
         <span className="planner-header-title">FAO Ukraine — Agricultural Input Planner</span>
-        <a href="/" className="planner-header-back">← Procurement Timeline</a>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="planner-print-btn"
+            onClick={() => window.print()}
+          >
+            🖨 Print / PDF
+          </button>
+          <a href="/" className="planner-header-back">← Procurement Timeline</a>
+        </div>
       </div>
 
       {/* Timeline */}
