@@ -337,8 +337,8 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
                   onMouseLeave={() => { setHoveredRow(null); hideTip(); }}>
                   <rect x={0} y={y} width={SVG_W} height={ROW_H}
                     fill={hoveredRow === i && !dragging ? 'rgba(46,126,46,0.07)' : 'transparent'} />
-                  <text x={8} y={y + 11} fontSize={10} fill="#333">{i + 1}. {step.name}</text>
-                  <text x={8} y={y + 22} fontSize={8} fill={isBeingDragged ? color : '#aaa'}>{step.owner}</text>
+                  <text x={8} y={y + 10} fontSize={8} fill="#333">{i + 1}. {step.name}</text>
+                  <text x={8} y={y + 20} fontSize={7} fill={isBeingDragged ? color : '#aaa'}>{step.owner}</text>
                   <rect
                     x={minX} y={y + 4} width={barW} height={16} rx={2}
                     fill={color}
@@ -355,8 +355,8 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
               const startX = poX || plantX;
               return (
                 <g>
-                  <text x={8} y={y + 11} fontSize={10} fill="#388e3c">🚚 Delivery ({selected.deliveryWeeks} wks)</text>
-                  <text x={8} y={y + 22} fontSize={8} fill="#aaa">Supplier → site</text>
+                  <text x={8} y={y + 10} fontSize={8} fill="#388e3c">🚚 Delivery ({selected.deliveryWeeks} wks)</text>
+                  <text x={8} y={y + 20} fontSize={7} fill="#aaa">Supplier → site</text>
                   <rect x={startX} y={y + 5} width={Math.max(2, plantX - startX)} height={14} rx={2} fill="#4CAF50" opacity={0.3} />
                 </g>
               );
@@ -367,7 +367,7 @@ export default function PlannerTimeline({ campaigns, selectedId, onSelect, onUpd
               const y = PAD_TOP + i * ROW_H;
               return (
                 <g>
-                  <text x={8} y={y + 15} fontSize={10} fontWeight={700} fill="#1a3a2a">🌱 Planting Date</text>
+                  <text x={8} y={y + 13} fontSize={8} fontWeight={700} fill="#1a3a2a">🌱 Planting Date</text>
                   <rect x={plantX - 4} y={y + 2} width={8} height={22} rx={2} fill={color} opacity={0.9} />
                 </g>
               );
