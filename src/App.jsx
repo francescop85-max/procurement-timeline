@@ -4,7 +4,7 @@ import { PROCESSES, MODIFIERS, QUICK_REF, FAO_DARK, FAO_BLUE } from "./data";
 import { toISO, formatDate, buildSteps, computeTimeline, computeTrackingTimeline, computeOverallStatus, subtractWorkingDays, countWorkingDays, addWorkingDays, encodePlanToHash, decodePlanFromHash, derivePlanId } from "./utils";
 import GanttChart from "./components/GanttChart";
 import StepEditor from "./components/StepEditor";
-import SettingsModal from "./components/SettingsModal";
+import SettingsPage from "./components/SettingsPage";
 import { useHolidays } from "./hooks/useHolidays";
 import { useActuals } from "./hooks/useActuals";
 import MonitorHeader from "./components/MonitorHeader";
@@ -705,20 +705,27 @@ export default function App() {
   const [view, setView] = useState("overview");
   const [activeMods, setActiveMods] = useState([]);
   const [stepOverride, setStepOverride] = useState(null); // null = use defaults
-  const [countryCode, setCountryCode] = useState(() => loadLS('procurement_country', 'UA'));
-  const [leadTimeOverrides, setLeadTimeOverrides] = useState(() => loadLS('procurement_lead_time_overrides', {}));
+  const DEFAULT_PROFILE = { id: 'default', name: 'Default', countryCode: 'UA', leadTimes: {} };
+  const [profiles, setProfiles] = useState(() => loadLS('procurement_profiles', []));
+  const [activeProfileId, setActiveProfileId] = useState(() => loadLS('procurement_active_profile_id', 'default'));
+  useEffect(() => { saveLS('procurement_profiles', profiles); }, [profiles]);
+  useEffect(() => { saveLS('procurement_active_profile_id', activeProfileId); }, [activeProfileId]);
+
+  const activeProfile = activeProfileId === 'default'
+    ? DEFAULT_PROFILE
+    : (profiles.find(p => p.id === activeProfileId) ?? DEFAULT_PROFILE);
+  const countryCode = activeProfile.countryCode;
+  const leadTimeOverrides = activeProfile.leadTimes;
+
   const [deliveryWeeks, setDeliveryWeeks] = useState(0);
   const [estimatedValue, setEstimatedValue] = useState(null);
   const [sel, setSel] = useState({ value: "", type: "goods", hasLTA: false, hasFixedLTA: false, isDirect: false, recommendation: null, hint: null });
   const updateSel = patch => setSel(s => ({ ...s, ...patch }));
   const { holidays, loading: holidaysLoading, error: holidaysError } = useHolidays(countryCode);
-  useEffect(() => { saveLS('procurement_country', countryCode); }, [countryCode]);
-  useEffect(() => { saveLS('procurement_lead_time_overrides', leadTimeOverrides); }, [leadTimeOverrides]);
 
   // ── Monitored plans list ──
   const { plans: monitoredPlans, loading: plansLoading, savePlan, removePlan } = useMonitoredPlans();
   const [showPlans, setShowPlans] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   // ── Sidebar resize ──
   const [sidebarWidth, setSidebarWidth] = useState(200);
@@ -766,8 +773,19 @@ export default function App() {
           setDesiredDeliveryDate(cfg.desiredDeliveryDate || "");
           setActiveMods(cfg.activeMods || []);
           setStepOverride(cfg.stepOverride || null);
-          if (cfg.countryCode) setCountryCode(cfg.countryCode);
-          if (cfg.leadTimeOverrides) setLeadTimeOverrides(cfg.leadTimeOverrides);
+          if (cfg.countryCode || cfg.leadTimeOverrides) {
+            const snapshotProfile = {
+              id: `profile_${Date.now()}`,
+              name: 'From shared link',
+              countryCode: cfg.countryCode || 'UA',
+              leadTimes: cfg.leadTimeOverrides || {},
+            };
+            setProfiles(prev => {
+              const exists = prev.find(p => p.id === snapshotProfile.id);
+              return exists ? prev : [...prev, snapshotProfile];
+            });
+            setActiveProfileId(snapshotProfile.id);
+          }
           setDeliveryWeeks(cfg.deliveryWeeks || 0);
           setEstimatedValue(cfg.estimatedValue ?? null);
           setTrackingMode(true);
@@ -924,7 +942,27 @@ export default function App() {
 
   return (
     <div className="app-wrapper">
-
+      {view === 'settings' && (
+        <SettingsPage
+          profiles={profiles}
+          activeProfileId={activeProfileId}
+          defaultProfile={DEFAULT_PROFILE}
+          onSaveProfile={(profile) => {
+            setProfiles(prev => {
+              const idx = prev.findIndex(p => p.id === profile.id);
+              return idx >= 0 ? prev.map(p => p.id === profile.id ? profile : p) : [...prev, profile];
+            });
+            setActiveProfileId(profile.id);
+          }}
+          onDeleteProfile={(id) => {
+            setProfiles(prev => prev.filter(p => p.id !== id));
+            if (activeProfileId === id) setActiveProfileId('default');
+          }}
+          onActivateProfile={(id) => setActiveProfileId(id)}
+          onBack={() => setView('overview')}
+        />
+      )}
+      {view !== 'settings' && (<>
       {/* HEADER */}
       <div className="app-header">
         <div className="app-header-inner">
@@ -945,7 +983,7 @@ export default function App() {
                   ? `Holidays unavailable (weekends only)`
                   : `${countryCode} public holidays loaded (${holidays.size} days)`}
               <button
-                onClick={() => setShowSettings(true)}
+                onClick={() => setView('settings')}
                 title="Settings"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, marginLeft: 8, color: '#555', verticalAlign: 'middle', padding: '0 2px' }}
               >
@@ -1352,18 +1390,7 @@ export default function App() {
       </div>
       {/* end app-body */}
       </div>
-      {showSettings && (
-        <SettingsModal
-          onClose={() => setShowSettings(false)}
-          countryCode={countryCode}
-          onCountryChange={code => setCountryCode(code)}
-          steps={selected ? buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS) : null}
-          procLabel={proc ? proc.label : null}
-          leadTimeOverrides={leadTimeOverrides}
-          selectedProcKey={selected}
-          onLeadTimeOverridesChange={setLeadTimeOverrides}
-        />
-      )}
+      </>)}
     </div>
   );
 }
