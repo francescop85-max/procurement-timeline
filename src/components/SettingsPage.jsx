@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PROCESSES, MODIFIERS } from "../data";
 import { buildSteps } from "../utils";
 
@@ -202,6 +202,19 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
   const [draftLeadTimes, setDraftLeadTimes] = useState(() => buildDraftLeadTimes(selectedProfile));
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), 2000);
+    return () => clearTimeout(timer);
+  }, [saved]);
+
+  useEffect(() => {
+    const profile = allProfiles.find(p => p.id === selectedId) || defaultProfile;
+    setDraftName(profile.name);
+    setDraftCountry(profile.countryCode);
+    setDraftLeadTimes(buildDraftLeadTimes(profile));
+  }, [selectedId]);
+
   function selectProfile(profile) {
     setSelectedId(profile.id);
     setDraftName(profile.name);
@@ -222,16 +235,16 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
 
   function handleSave() {
     if (isDefault) return;
+    const currentProfile = allProfiles.find(p => p.id === selectedId) || defaultProfile;
     const updated = {
-      ...selectedProfile,
-      name: draftName.trim() || selectedProfile.name,
+      ...currentProfile,
+      name: draftName.trim() || currentProfile.name,
       countryCode: draftCountry,
       leadTimes: draftToLeadTimes(draftLeadTimes),
     };
     onSaveProfile(updated);
     onActivateProfile(updated.id);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   function handleNewProfile() {
