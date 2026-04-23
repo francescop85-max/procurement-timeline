@@ -4,6 +4,7 @@ import { PROCESSES, MODIFIERS, QUICK_REF, FAO_DARK, FAO_BLUE } from "./data";
 import { toISO, formatDate, buildSteps, computeTimeline, computeTrackingTimeline, computeOverallStatus, subtractWorkingDays, countWorkingDays, addWorkingDays, encodePlanToHash, decodePlanFromHash, derivePlanId } from "./utils";
 import GanttChart from "./components/GanttChart";
 import StepEditor from "./components/StepEditor";
+import SettingsModal from "./components/SettingsModal";
 import { useHolidays } from "./hooks/useHolidays";
 import { useActuals } from "./hooks/useActuals";
 import MonitorHeader from "./components/MonitorHeader";
@@ -700,6 +701,7 @@ export default function App() {
   // ── Monitored plans list ──
   const { plans: monitoredPlans, loading: plansLoading, savePlan, removePlan } = useMonitoredPlans();
   const [showPlans, setShowPlans] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // ── Sidebar resize ──
   const [sidebarWidth, setSidebarWidth] = useState(200);
@@ -920,7 +922,18 @@ export default function App() {
             <div className="app-header-title">Procurement Timeline Estimator</div>
             <div className="app-header-org">FAO Ukraine Country Office (FAOUA) · Manual Section 502 &amp; FAOUA SOPs</div>
             <div style={{ marginTop: 3, fontSize: 10, opacity: 0.6, fontFamily: "var(--font-mono)" }}>
-              {holidaysLoading ? "Loading UA holidays…" : holidaysError ? "Holidays unavailable (weekends only)" : `UA public holidays loaded (${holidays.size} days)`}
+              {holidaysLoading
+                ? `Loading ${countryCode} holidays…`
+                : holidaysError
+                  ? `Holidays unavailable (weekends only)`
+                  : `${countryCode} public holidays loaded (${holidays.size} days)`}
+              <button
+                onClick={() => setShowSettings(true)}
+                title="Settings"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, marginLeft: 8, color: '#555', verticalAlign: 'middle', padding: '0 2px' }}
+              >
+                ⚙️
+              </button>
             </div>
           </div>
           <a
@@ -1322,6 +1335,18 @@ export default function App() {
       </div>
       {/* end app-body */}
       </div>
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          countryCode={countryCode}
+          onCountryChange={code => setCountryCode(code)}
+          steps={selected ? buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS) : null}
+          procLabel={proc ? proc.label : null}
+          leadTimeOverrides={leadTimeOverrides}
+          selectedProcKey={selected}
+          onLeadTimeOverridesChange={setLeadTimeOverrides}
+        />
+      )}
     </div>
   );
 }
