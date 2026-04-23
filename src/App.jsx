@@ -3,6 +3,7 @@ import "./App.css";
 import { PROCESSES, MODIFIERS, QUICK_REF, FAO_DARK, FAO_BLUE } from "./data";
 import { toISO, formatDate, buildSteps, computeTimeline, computeTrackingTimeline, computeOverallStatus, subtractWorkingDays, countWorkingDays, addWorkingDays, encodePlanToHash, decodePlanFromHash, derivePlanId } from "./utils";
 import GanttChart from "./components/GanttChart";
+import StepEditor from "./components/StepEditor";
 import { useHolidays } from "./hooks/useHolidays";
 import { useActuals } from "./hooks/useActuals";
 import MonitorHeader from "./components/MonitorHeader";
@@ -1146,8 +1147,30 @@ export default function App() {
               />
             )}
 
+            {/* Step customization */}
+            {!trackingMode && selected && (
+              <div className="card no-print" style={{ padding: "12px 16px", marginBottom: 14 }}>
+                {stepOverride === null ? (
+                  <button
+                    className="btn"
+                    style={{ borderColor: proc.color, color: proc.color, fontSize: 12, width: "100%" }}
+                    onClick={() => setStepOverride(buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS))}
+                  >
+                    ✏️ Customize Steps
+                  </button>
+                ) : (
+                  <StepEditor
+                    steps={stepOverride}
+                    onStepsChange={setStepOverride}
+                    onReset={() => setStepOverride(null)}
+                    procColor={proc.color}
+                  />
+                )}
+              </div>
+            )}
+
             {/* Modifiers */}
-            {!trackingMode && applicableMods.length > 0 && (
+            {!trackingMode && stepOverride === null && applicableMods.length > 0 && (
               <div className="modifiers-box no-print">
                 <div className="modifiers-title">
                   Additional Circumstances — check all that apply
