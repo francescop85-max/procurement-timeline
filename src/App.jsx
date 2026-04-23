@@ -673,6 +673,13 @@ function MonitoredPlansPage({ plans, loading, onOpen, onRemove }) {
 // ── Main App ──
 
 export default function App() {
+  function loadLS(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  }
+  function saveLS(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  }
+
   const [selected, setSelected] = useState(null);
   const [prDate, setPrDate] = useState("");
   const [desiredPoDate, setDesiredPoDate] = useState("");
@@ -680,11 +687,15 @@ export default function App() {
   const [view, setView] = useState("overview");
   const [activeMods, setActiveMods] = useState([]);
   const [stepOverride, setStepOverride] = useState(null); // null = use defaults
+  const [countryCode, setCountryCode] = useState(() => loadLS('procurement_country', 'UA'));
+  const [leadTimeOverrides, setLeadTimeOverrides] = useState(() => loadLS('procurement_lead_time_overrides', {}));
   const [deliveryWeeks, setDeliveryWeeks] = useState(0);
   const [estimatedValue, setEstimatedValue] = useState(null);
   const [sel, setSel] = useState({ value: "", type: "goods", hasLTA: false, hasFixedLTA: false, isDirect: false, recommendation: null, hint: null });
   const updateSel = patch => setSel(s => ({ ...s, ...patch }));
-  const { holidays, loading: holidaysLoading, error: holidaysError } = useHolidays();
+  const { holidays, loading: holidaysLoading, error: holidaysError } = useHolidays(countryCode);
+  useEffect(() => { saveLS('procurement_country', countryCode); }, [countryCode]);
+  useEffect(() => { saveLS('procurement_lead_time_overrides', leadTimeOverrides); }, [leadTimeOverrides]);
 
   // ── Monitored plans list ──
   const { plans: monitoredPlans, loading: plansLoading, savePlan, removePlan } = useMonitoredPlans();
@@ -736,6 +747,8 @@ export default function App() {
           setDesiredDeliveryDate(cfg.desiredDeliveryDate || "");
           setActiveMods(cfg.activeMods || []);
           setStepOverride(cfg.stepOverride || null);
+          if (cfg.countryCode) setCountryCode(cfg.countryCode);
+          if (cfg.leadTimeOverrides) setLeadTimeOverrides(cfg.leadTimeOverrides);
           setDeliveryWeeks(cfg.deliveryWeeks || 0);
           setEstimatedValue(cfg.estimatedValue ?? null);
           setTrackingMode(true);
@@ -764,8 +777,17 @@ export default function App() {
   }) : [];
   const effectiveActiveMods = activeMods.filter(key => applicableMods.some(m => m.key === key));
 
+  function applyLeadTimeOverrides(rawSteps) {
+    const procOverrides = leadTimeOverrides[selected];
+    if (!procOverrides) return rawSteps;
+    return rawSteps.map(s => {
+      const o = procOverrides[s.name];
+      return o ? { ...s, minDays: o.minDays ?? s.minDays, maxDays: o.maxDays ?? s.maxDays } : s;
+    });
+  }
+
   const steps = selected
-    ? (stepOverride ?? buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS))
+    ? (stepOverride ?? applyLeadTimeOverrides(buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS)))
     : [];
   // Original (planned) timeline — always the baseline
   const originalTimeline = steps.length && prDate ? computeTimeline(steps, prDate, holidays) : [];
@@ -869,6 +891,8 @@ export default function App() {
     prDate,
     activeMods: effectiveActiveMods,
     stepOverride: stepOverride ?? undefined,
+    countryCode: countryCode !== 'UA' ? countryCode : undefined,
+    leadTimeOverrides: Object.keys(leadTimeOverrides).length ? leadTimeOverrides : undefined,
     deliveryWeeks,
     estimatedValue,
     desiredPoDate,
