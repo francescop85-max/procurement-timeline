@@ -690,6 +690,8 @@ function MonitoredPlansPage({ plans, loading, onOpen, onRemove }) {
 
 // ── Main App ──
 
+const DEFAULT_PROFILE = { id: 'default', name: 'Default', countryCode: 'UA', leadTimes: {} };
+
 export default function App() {
   function loadLS(key, fallback) {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -705,7 +707,6 @@ export default function App() {
   const [view, setView] = useState("overview");
   const [activeMods, setActiveMods] = useState([]);
   const [stepOverride, setStepOverride] = useState(null); // null = use defaults
-  const DEFAULT_PROFILE = { id: 'default', name: 'Default', countryCode: 'UA', leadTimes: {} };
   const [profiles, setProfiles] = useState(() => loadLS('procurement_profiles', []));
   const [activeProfileId, setActiveProfileId] = useState(() => loadLS('procurement_active_profile_id', 'default'));
   useEffect(() => { saveLS('procurement_profiles', profiles); }, [profiles]);
@@ -775,7 +776,7 @@ export default function App() {
           setStepOverride(cfg.stepOverride || null);
           if (cfg.countryCode || cfg.leadTimeOverrides) {
             const snapshotProfile = {
-              id: `profile_${Date.now()}`,
+              id: `profile_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
               name: 'From shared link',
               countryCode: cfg.countryCode || 'UA',
               leadTimes: cfg.leadTimeOverrides || {},
