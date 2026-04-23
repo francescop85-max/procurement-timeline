@@ -678,6 +678,7 @@ export default function App() {
   const [desiredDeliveryDate, setDesiredDeliveryDate] = useState("");
   const [view, setView] = useState("overview");
   const [activeMods, setActiveMods] = useState([]);
+  const [stepOverride, setStepOverride] = useState(null); // null = use defaults
   const [deliveryWeeks, setDeliveryWeeks] = useState(0);
   const [estimatedValue, setEstimatedValue] = useState(null);
   const [sel, setSel] = useState({ value: "", type: "goods", hasLTA: false, hasFixedLTA: false, isDirect: false, recommendation: null, hint: null });
@@ -733,6 +734,7 @@ export default function App() {
           setDesiredPoDate(cfg.desiredPoDate || "");
           setDesiredDeliveryDate(cfg.desiredDeliveryDate || "");
           setActiveMods(cfg.activeMods || []);
+          setStepOverride(cfg.stepOverride || null);
           setDeliveryWeeks(cfg.deliveryWeeks || 0);
           setEstimatedValue(cfg.estimatedValue ?? null);
           setTrackingMode(true);
@@ -761,7 +763,9 @@ export default function App() {
   }) : [];
   const effectiveActiveMods = activeMods.filter(key => applicableMods.some(m => m.key === key));
 
-  const steps = selected ? buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS) : [];
+  const steps = selected
+    ? (stepOverride ?? buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS))
+    : [];
   // Original (planned) timeline — always the baseline
   const originalTimeline = steps.length && prDate ? computeTimeline(steps, prDate, holidays) : [];
   // Tracking timeline — cascades from actuals when in tracking mode
@@ -844,6 +848,7 @@ export default function App() {
   function selectProcess(key, value) {
     setSelected(key);
     setActiveMods([]);
+    setStepOverride(null);
     setDeliveryWeeks(0);
     setDesiredPoDate("");
     setDesiredDeliveryDate("");
@@ -862,6 +867,7 @@ export default function App() {
     selected,
     prDate,
     activeMods: effectiveActiveMods,
+    stepOverride: stepOverride ?? undefined,
     deliveryWeeks,
     estimatedValue,
     desiredPoDate,
