@@ -241,6 +241,7 @@ function StepsTable({ timeline, proc, activeMods, totalMinDays, totalMaxDays, mi
               <th style={{ width: 100 }}>Latest</th>
               {trackingMode && <th style={{ width: 110 }}>Actual</th>}
               {trackingMode && <th style={{ width: 80 }}>Status</th>}
+              {trackingMode && <th style={{ minWidth: 140 }}>Remarks</th>}
               <th style={{ width: 40 }}></th>
             </tr>
           </thead>
@@ -296,6 +297,21 @@ function StepsTable({ timeline, proc, activeMods, totalMinDays, totalMaxDays, mi
                       )}
                     </td>
                   )}
+                  {trackingMode && (
+                    <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+                      <input
+                        type="text"
+                        value={actuals[i]?.remark || ''}
+                        onChange={e => onActualChange(i, { remark: e.target.value || undefined })}
+                        placeholder="Add remark…"
+                        style={{
+                          width: '100%', border: '1px solid #ddd', borderRadius: 4,
+                          padding: '3px 6px', fontSize: 12, background: '#fafafa',
+                          fontFamily: 'var(--font-body)', minWidth: 120,
+                        }}
+                      />
+                    </td>
+                  )}
                   <td>{hasNotes && <button className="notes-toggle" onClick={() => toggleNote(i)} title={step.notes}>{notesOpen ? '−' : 'i'}</button>}</td>
                 </tr>
               );
@@ -307,6 +323,7 @@ function StepsTable({ timeline, proc, activeMods, totalMinDays, totalMaxDays, mi
               <td><span className="day-badge day-badge-max">{totalMaxDays}d</span></td>
               <td className="date-cell" style={{ color: proc.color, fontWeight: 700 }}>{minPoDate ? formatDate(minPoDate) : "—"}</td>
               <td className="date-cell" style={{ color: proc.color, fontWeight: 700 }}>{maxPoDate ? formatDate(maxPoDate) : "—"}</td>
+              {trackingMode && <td />}
               {trackingMode && <td />}
               {trackingMode && <td />}
               <td />
