@@ -76,7 +76,7 @@ function GridAndMarkers({ xPos, months, projectEndMap, todayX, svgH }) {
         );
       })}
 
-      {todayX >= LABEL_W && todayX <= SVG_W && (
+      {todayX > LABEL_W && todayX <= SVG_W && (
         <g>
           {(() => { const { anchor, dx } = edgeAnchor(todayX); return (
             <>
