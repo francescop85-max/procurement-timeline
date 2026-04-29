@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLoaPlans } from './useLoaPlans.js';
-import { LOA_PROCESSES } from './data.js';
-import { computeLoaStatus, recomputeStepsFrom, formatDate } from './utils.js';
+import { LOA_PROCESSES, getEffectiveSteps, loadLoaSettings } from './data.js';
+import { computeLoaStatus, computeLoaTimeline, recomputeStepsFrom, formatDate } from './utils.js';
 import { useHolidays } from '../hooks/useHolidays.js';
+import StepEditor from '../components/StepEditor.jsx';
 import LoaPanel from './LoaPanel.jsx';
 import LoaGantt from './LoaGantt.jsx';
 
@@ -26,6 +27,19 @@ export default function LoaApp() {
   const [selectedId, setSelectedId] = useState(null);
   const [panelMode, setPanelMode] = useState(null);
   const [activeTab, setActiveTab] = useState('table');
+  const [stepEditMode, setStepEditMode] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Detect #plan=<id> in URL hash and auto-select after plans load
+  useEffect(() => {
+    if (loading) return;
+    const match = window.location.hash.match(/^#plan=(.+)$/);
+    if (match) {
+      const planId = decodeURIComponent(match[1]);
+      const found = plans.find(p => p.id === planId);
+      if (found) { setSelectedId(found.id); window.location.hash = ''; }
+    }
+  }, [loading, plans]);
 
   const selectedPlan = selectedId ? plans.find(p => p.id === selectedId) : null;
   const proc = selectedPlan ? LOA_PROCESSES[selectedPlan.processType] : null;
@@ -33,13 +47,14 @@ export default function LoaApp() {
   async function handleDelete(id) {
     if (!window.confirm('Remove this LOA plan?')) return;
     await deletePlan(id);
-    if (selectedId === id) setSelectedId(null);
+    if (selectedId === id) { setSelectedId(null); setStepEditMode(false); }
   }
 
   async function handlePanelSave(planData) {
     await savePlan(planData);
     setSelectedId(planData.id);
     setPanelMode(null);
+    setStepEditMode(false);
   }
 
   // Drag: preview=true returns new steps without saving; preview=false persists
@@ -49,6 +64,30 @@ export default function LoaApp() {
     if (preview) return newSteps;
     savePlan({ ...selectedPlan, steps: newSteps, updatedAt: new Date().toISOString() });
     return newSteps;
+  }
+
+  // Step customization: change minDays/maxDays/name → recompute timeline
+  function handleStepsChange(newDefs) {
+    if (!selectedPlan) return;
+    const timeline = computeLoaTimeline(newDefs, selectedPlan.startDate, holidays);
+    savePlan({ ...selectedPlan, steps: timeline, updatedAt: new Date().toISOString() });
+  }
+
+  function handleResetSteps() {
+    if (!selectedPlan) return;
+    const settings = loadLoaSettings();
+    const defaultDefs = getEffectiveSteps(selectedPlan.processType, selectedPlan.value, settings);
+    const timeline = computeLoaTimeline(defaultDefs, selectedPlan.startDate, holidays);
+    savePlan({ ...selectedPlan, steps: timeline, updatedAt: new Date().toISOString() });
+    setStepEditMode(false);
+  }
+
+  function handleCopyLink() {
+    if (!selectedPlan) return;
+    const url = `${window.location.origin}/loa#plan=${encodeURIComponent(selectedPlan.id)}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   }
 
   const enriched = plans.map(p => ({ ...p, status: computeLoaStatus(p) }));
@@ -68,6 +107,9 @@ export default function LoaApp() {
     borderBottom: activeTab === tab ? '2px solid #1a2e44' : '2px solid transparent',
     background: 'none', color: activeTab === tab ? '#1a2e44' : '#888',
   });
+
+  // Step definitions for StepEditor (name + minDays + maxDays, no owner)
+  const stepDefs = selectedPlan?.steps?.map(s => ({ name: s.name, minDays: s.minDays, maxDays: s.maxDays })) ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f4f6f8', fontFamily: 'var(--font-body)' }}>
@@ -114,7 +156,7 @@ export default function LoaApp() {
               return (
                 <div
                   key={plan.id}
-                  onClick={() => { setSelectedId(plan.id); setActiveTab('table'); }}
+                  onClick={() => { setSelectedId(plan.id); setActiveTab('table'); setStepEditMode(false); }}
                   style={{
                     padding: '10px 10px', borderRadius: 8, marginBottom: 4, cursor: 'pointer',
                     background: isSelected ? '#eaf0f6' : '#fafafa',
@@ -178,7 +220,13 @@ export default function LoaApp() {
                     )}
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 8, alignSelf: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: 8, alignSelf: 'flex-start', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleCopyLink}
+                    style={{ fontSize: 12, padding: '5px 12px', border: `1px solid ${proc.color}`, borderRadius: 6, background: copied ? proc.color : '#fff', cursor: 'pointer', fontWeight: 600, color: copied ? '#fff' : proc.color, transition: 'all 0.2s' }}
+                  >
+                    {copied ? '✓ Link copied!' : '📤 Share Monitor Link'}
+                  </button>
                   <button
                     onClick={() => setPanelMode(selectedPlan)}
                     style={{ fontSize: 12, padding: '5px 12px', border: '1px solid #ddd', borderRadius: 6, background: '#fff', cursor: 'pointer', fontWeight: 600 }}
@@ -221,36 +269,56 @@ export default function LoaApp() {
               {/* Table tab */}
               {activeTab === 'table' && (
                 <div style={{ background: '#fff', borderRadius: '0 0 10px 10px', padding: '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                      <thead>
-                        <tr style={{ background: '#f4f6f8' }}>
-                          <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8' }}>#</th>
-                          <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8' }}>Step</th>
-                          <th style={{ textAlign: 'right', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>Earliest start</th>
-                          <th style={{ textAlign: 'right', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>Latest end</th>
-                          <th style={{ textAlign: 'right', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>Days</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedPlan.steps.map((step, i) => (
-                          <tr key={step.id || i} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                            <td style={{ padding: '7px 10px', color: '#888', fontWeight: 600 }}>{i + 1}</td>
-                            <td style={{ padding: '7px 10px', color: '#222' }}>{step.name}</td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', color: '#555', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-                              {formatDate(step.minStart)}
-                            </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', color: proc.color, whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600 }}>
-                              {formatDate(step.maxEnd)}
-                            </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', color: '#888', whiteSpace: 'nowrap' }}>
-                              {step.minDays}–{step.maxDays}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {!stepEditMode ? (
+                    <>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                          <thead>
+                            <tr style={{ background: '#f4f6f8' }}>
+                              <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8' }}>#</th>
+                              <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8' }}>Step</th>
+                              <th style={{ textAlign: 'right', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>Earliest start</th>
+                              <th style={{ textAlign: 'right', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>Latest end</th>
+                              <th style={{ textAlign: 'right', padding: '7px 10px', fontWeight: 700, color: '#555', borderBottom: '1px solid #e8e8e8', whiteSpace: 'nowrap' }}>Days</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedPlan.steps.map((step, i) => (
+                              <tr key={step.id || i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <td style={{ padding: '7px 10px', color: '#888', fontWeight: 600 }}>{i + 1}</td>
+                                <td style={{ padding: '7px 10px', color: '#222' }}>{step.name}</td>
+                                <td style={{ padding: '7px 10px', textAlign: 'right', color: '#555', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                                  {formatDate(step.minStart)}
+                                </td>
+                                <td style={{ padding: '7px 10px', textAlign: 'right', color: proc.color, whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600 }}>
+                                  {formatDate(step.maxEnd)}
+                                </td>
+                                <td style={{ padding: '7px 10px', textAlign: 'right', color: '#888', whiteSpace: 'nowrap' }}>
+                                  {step.minDays}–{step.maxDays}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{ marginTop: 14, borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+                        <button
+                          onClick={() => setStepEditMode(true)}
+                          style={{ fontSize: 12, padding: '6px 14px', border: `1px solid ${proc.color}`, borderRadius: 6, background: '#fff', cursor: 'pointer', fontWeight: 600, color: proc.color, width: '100%' }}
+                        >
+                          ✏️ Customize Steps
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <StepEditor
+                      steps={stepDefs}
+                      onStepsChange={handleStepsChange}
+                      onReset={handleResetSteps}
+                      procColor={proc.color}
+                      allowNameEdit={true}
+                    />
+                  )}
                 </div>
               )}
 

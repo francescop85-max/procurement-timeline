@@ -70,7 +70,7 @@ function SortableStep({ step, index, onDelete, onUpdate, allowNameEdit }) {
             {step.name}
           </div>
           <div style={{ color: "#666", fontSize: 11 }}>
-            {step.owner} · {step.minDays}–{step.maxDays} days
+            {step.owner ? step.owner + ' · ' : ''}{step.minDays}–{step.maxDays} days
           </div>
         </div>
         <button
