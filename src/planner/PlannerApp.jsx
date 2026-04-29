@@ -129,9 +129,7 @@ export default function PlannerApp() {
             🖨 Print / PDF
           </button>
           <a
-            href="https://github.com/francescop85-max/procurement_timeline/blob/main/docs/user-guide/README.md"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/guide"
             className="planner-header-back"
           >
             📖 User Guide

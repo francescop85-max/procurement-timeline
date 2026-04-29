@@ -14,6 +14,7 @@ export default defineConfig({
         main: 'index.html',
         planner: 'planner.html',
         loa: 'loa.html',
+        guide: 'guide.html',
       },
     },
   },

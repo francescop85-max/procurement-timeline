@@ -1038,9 +1038,7 @@ export default function App() {
             📋 LOA QA Planner
           </a>
           <a
-            href="https://github.com/francescop85-max/procurement_timeline/blob/main/docs/user-guide/README.md"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/guide"
             style={{
               marginLeft: 8,
               fontSize: 11,

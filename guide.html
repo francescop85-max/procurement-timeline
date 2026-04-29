@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAO Ukraine — Procurement & Planning Tools — User Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'IBM Plex Sans', sans-serif; background: #f4f6f8; color: #1a1a2e; line-height: 1.65; }
+
+    /* Header */
+    .site-header {
+      background: #1a2e44; color: #fff;
+      padding: 0 32px; height: 52px;
+      display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .site-header-title { font-weight: 700; font-size: 15px; letter-spacing: -0.3px; }
+    .site-header nav { margin-left: auto; display: flex; gap: 8px; }
+    .site-header nav a {
+      color: rgba(255,255,255,0.75); font-size: 12px; text-decoration: none;
+      padding: 4px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.25);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .site-header nav a:hover { color: #fff; border-color: rgba(255,255,255,0.6); }
+
+    /* Layout */
+    .layout { display: flex; max-width: 1100px; margin: 0 auto; padding: 32px 24px; gap: 32px; }
+
+    /* TOC sidebar */
+    .toc {
+      width: 220px; flex-shrink: 0;
+      position: sticky; top: 72px; align-self: flex-start;
+      background: #fff; border-radius: 10px; padding: 18px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      max-height: calc(100vh - 96px); overflow-y: auto;
+    }
+    .toc-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #888; margin-bottom: 12px; }
+    .toc a { display: block; font-size: 12px; color: #555; text-decoration: none; padding: 4px 0; border-left: 2px solid transparent; padding-left: 8px; transition: all 0.15s; }
+    .toc a:hover { color: #1a2e44; border-left-color: #1a2e44; }
+    .toc a.sub { padding-left: 18px; font-size: 11px; color: #888; }
+    .toc a.sub:hover { color: #1a2e44; border-left-color: #1a2e44; }
+
+    /* Content */
+    .content { flex: 1; min-width: 0; }
+
+    /* Hero */
+    .hero {
+      background: #1a2e44; color: #fff; border-radius: 12px;
+      padding: 32px 36px; margin-bottom: 28px;
+    }
+    .hero h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
+    .hero p { font-size: 13px; color: rgba(255,255,255,0.7); max-width: 580px; line-height: 1.6; }
+    .hero .tool-chips { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    .hero .chip {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600;
+      text-decoration: none; color: #fff; transition: background 0.15s;
+    }
+    .hero .chip:hover { background: rgba(255,255,255,0.22); }
+
+    /* Sections */
+    .section { background: #fff; border-radius: 10px; padding: 28px 32px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid #f0f0f0; }
+    .section-icon { font-size: 22px; }
+    .section-num { font-size: 11px; font-weight: 700; color: #aaa; font-family: 'IBM Plex Mono', monospace; }
+    .section h2 { font-size: 18px; font-weight: 700; color: #1a2e44; letter-spacing: -0.3px; }
+
+    h3 { font-size: 14px; font-weight: 700; color: #1a2e44; margin: 20px 0 10px; }
+    h4 { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px; }
+    p { font-size: 13px; color: #444; margin-bottom: 10px; }
+    ul, ol { font-size: 13px; color: #444; padding-left: 20px; margin-bottom: 10px; }
+    li { margin-bottom: 5px; }
+    strong { color: #1a2e44; }
+    code { font-family: 'IBM Plex Mono', monospace; font-size: 11px; background: #f4f6f8; border: 1px solid #e8e8e8; border-radius: 3px; padding: 1px 5px; color: #1558a0; }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+    .step { display: flex; gap: 14px; align-items: flex-start; }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%; background: #1a2e44; color: #fff;
+      font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .step-body { flex: 1; }
+    .step-body strong { display: block; font-size: 13px; margin-bottom: 3px; }
+    .step-body p { margin: 0; font-size: 12px; color: #666; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0 16px; }
+    th { background: #f4f6f8; text-align: left; padding: 8px 12px; font-weight: 700; color: #555; border-bottom: 2px solid #e8e8e8; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #444; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+
+    /* Callouts */
+    .callout { border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 12px; line-height: 1.6; display: flex; gap: 10px; }
+    .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .callout.info { background: #e3f2fd; border: 1px solid #90caf9; color: #1558a0; }
+    .callout.warning { background: #fff3e0; border: 1px solid #ffb74d; color: #e65100; }
+    .callout.tip { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
+
+    /* Status badges */
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; margin-right: 6px; }
+    .badge.green { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .badge.orange { background: #fff3e0; color: #e65100; border: 1px solid #ffb74d; }
+    .badge.red { background: #ffebee; color: #b71c1c; border: 1px solid #ef9a9a; }
+
+    /* Threshold table highlight */
+    .threshold-high td:first-child { font-family: 'IBM Plex Mono', monospace; }
+
+    /* Footer */
+    .page-footer { text-align: center; padding: 28px; font-size: 11px; color: #aaa; }
+
+    @media (max-width: 760px) {
+      .toc { display: none; }
+      .layout { padding: 16px; }
+      .section { padding: 20px 18px; }
+      .hero { padding: 22px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <span style="font-size:16px">📋</span>
+  <span class="site-header-title">FAO Ukraine — Procurement &amp; Planning Tools</span>
+  <nav>
+    <a href="/">Procurement Timeline</a>
+    <a href="/planner">Agricultural Planner</a>
+    <a href="/loa">LOA QA Planner</a>
+  </nav>
+</header>
+
+<div class="layout">
+
+  <!-- TOC -->
+  <aside class="toc">
+    <div class="toc-title">Contents</div>
+    <a href="#overview">1. Overview</a>
+    <a href="#procurement" class="sub">2. Procurement Estimator</a>
+    <a href="#agri" class="sub">3. Agricultural Planner</a>
+    <a href="#loa" class="sub">4. LOA QA Planner</a>
+    <a href="#settings" class="sub">5. Settings &amp; Profiles</a>
+    <a href="#sharing" class="sub">6. Sharing &amp; Monitoring</a>
+    <a href="#thresholds" class="sub">7. Quick Reference</a>
+  </aside>
+
+  <!-- Main content -->
+  <main class="content">
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1>User Guide</h1>
+      <p>Three planning tools to estimate procurement timelines, manage agricultural input campaigns, and plan LOA quality assurance processes — all respecting Ukrainian public holidays.</p>
+      <div class="tool-chips">
+        <a href="/" class="chip">📦 Procurement Timeline</a>
+        <a href="/planner" class="chip">🌱 Agricultural Planner</a>
+        <a href="/loa" class="chip">📋 LOA QA Planner</a>
+      </div>
+    </div>
+
+    <!-- Section 1: Overview -->
+    <div class="section" id="overview">
+      <div class="section-header">
+        <span class="section-icon">🗺️</span>
+        <div>
+          <div class="section-num">SECTION 1</div>
+          <h2>Overview of the Three Tools</h2>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Tool</th><th>Purpose</th><th>Primary user</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Procurement Timeline Estimator</strong></td>
+            <td>Estimates procurement timelines working <em>backward</em> from a desired delivery date. Identifies when a PR must be raised.</td>
+            <td>ROs initiating procurement</td>
+          </tr>
+          <tr>
+            <td><strong>Agricultural Input Planner</strong></td>
+            <td>Plans multiple agricultural input campaigns on a shared Gantt timeline, tracking deadlines against planting dates and project end dates.</td>
+            <td>Programme Officers / ROs for agricultural programmes</td>
+          </tr>
+          <tr>
+            <td><strong>LOA QA Planner</strong></td>
+            <td>Estimates the full QA process timeline for Letters of Agreement and amendments, including LPC review steps when applicable.</td>
+            <td>ROs managing partner implementation through LoAs</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="callout-icon">✓</span>
+        <div>All three tools automatically account for <strong>Ukrainian public holidays</strong> when computing working-day timelines.</div>
+      </div>
+    </div>
+
+    <!-- Section 2: Procurement Timeline Estimator -->
+    <div class="section" id="procurement">
+      <div class="section-header">
+        <span class="section-icon">📦</span>
+        <div>
+          <div class="section-num">SECTION 2</div>
+          <h2>Procurement Timeline Estimator</h2>
+        </div>
+      </div>
+
+      <p>Given a PR date and desired delivery date, the tool works <strong>forward</strong> to show each procurement phase and whether the timeline is feasible. It also works <strong>backward</strong> to tell you the latest possible PR date for a given desired delivery.</p>
+
+      <h3>Creating a timeline — step by step</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Select a process type</strong><p>Choose from the left panel (goods, services, works, framework contract). The tool auto-recommends a procurement method based on estimated value.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Enter the PR date</strong><p>Set the date the PR will be (or was) submitted to procurement. This anchors the forward timeline.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Enter estimated value and desired dates</strong><p>Set the estimated contract value. Then set the <strong>desired PO issuance date</strong> and <strong>desired delivery date</strong>. The tool shows whether the timeline is feasible (green), at risk (orange), or not feasible (red).</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><strong>Review the Gantt chart</strong><p>Each phase appears as a bar: <strong>solid</strong> = best case (min days), <strong>light</strong> = worst-case buffer (max days). Hover any bar for details.</p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><strong>Apply modifiers</strong><p>Under "Additional Circumstances", check any conditions that apply (e.g. no-objection required, sole source justification). Each modifier adds days to the relevant phase.</p></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><strong>Customize steps (optional)</strong><p>Click <strong>✏️ Customize Steps</strong> to add, remove, reorder, or adjust durations for individual phases. Click "Reset to defaults" to restore the standard process.</p></div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-body"><strong>Share a monitoring link</strong><p>Click <strong>Share Monitor Link</strong>, enter the PR number, then copy the generated URL. Anyone opening it sees the same timeline and can track actual progress against planned dates.</p></div></div>
+      </div>
+
+      <h3>Status indicators</h3>
+      <p>
+        <span class="badge green">On track</span> Today is before the earliest expected completion date.<br>
+        <span class="badge orange">At risk</span> Today falls within the min–max completion range.<br>
+        <span class="badge red">Overdue</span> Today is past the latest expected completion date.
+      </p>
+
+      <h3>Monitoring view</h3>
+      <p>When someone opens a shared monitoring link, the app switches to <strong>tracking mode</strong>. In this mode you can record actual completion dates for each phase. The Gantt updates in real time to show actual vs. planned progress.</p>
+    </div>
+
+    <!-- Section 3: Agricultural Planner -->
+    <div class="section" id="agri">
+      <div class="section-header">
+        <span class="section-icon">🌱</span>
+        <div>
+          <div class="section-num">SECTION 3</div>
+          <h2>Agricultural Input Planner</h2>
+        </div>
+      </div>
+
+      <p>The Agricultural Input Planner works <strong>backward from a target planting or delivery date</strong>. For each campaign (e.g. spring wheat seeds, fertilizers), it calculates the latest possible PR date and displays all campaigns on a shared Gantt — making bottlenecks and scheduling conflicts immediately visible.</p>
+
+      <h3>Adding a campaign — step by step</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Click "+ New Campaign"</strong><p>Opens the campaign panel on the right side of the screen.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Fill in campaign details</strong>
+          <table style="margin-top:8px">
+            <tr><th>Field</th><th>What to enter</th></tr>
+            <tr><td>Crop / Input Type</td><td>e.g. "Spring Wheat Seeds", "Urea Fertilizer"</td></tr>
+            <tr><td>Target Planting / Delivery Date</td><td>Date by which inputs must reach beneficiaries</td></tr>
+            <tr><td>Estimated Value (USD)</td><td>Used to auto-recommend a procurement method</td></tr>
+            <tr><td>Procurement Type</td><td>Goods, Services, or Works</td></tr>
+            <tr><td>Delivery Lead Time</td><td>Weeks the supplier needs to deliver after PO issuance</td></tr>
+          </table>
+        </div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Review the recommended procurement method</strong><p>The tool recommends a method based on value and type. You can override this if needed.</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><strong>Add funding projects (optional but recommended)</strong><p>Link the campaign to one or more projects with end dates. The tool flags if the procurement timeline risks missing a project deadline.</p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><strong>Apply modifiers and a custom step</strong><p>Check applicable "Additional Circumstances". You can also insert a one-off custom step (e.g. a specific approval) at any position in the process.</p></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><strong>Save</strong><p>Click <strong>Add Campaign</strong>. The campaign appears in the shared Gantt timeline and the campaign table below it.</p></div></div>
+      </div>
+
+      <h3>Reading the Gantt timeline</h3>
+      <ul>
+        <li>Each row represents one campaign.</li>
+        <li>The bars show the procurement window from PR deadline to delivery deadline.</li>
+        <li>A <strong>red dashed line</strong> marks today.</li>
+        <li><strong>Click any bar</strong> to expand the campaign's individual phase breakdown.</li>
+        <li><strong>Drag a phase bar</strong> to manually adjust timing — all dependent phases shift accordingly.</li>
+      </ul>
+
+      <h3>Campaign table</h3>
+      <p>Below the Gantt, the table lists all campaigns with PR deadline, PO deadline, delivery deadline, funding project status, and quick Edit / Delete buttons.</p>
+
+      <h3>Print / PDF</h3>
+      <p>Click <strong>🖨 Print / PDF</strong> in the header to generate a print-friendly view of the timeline and table.</p>
+    </div>
+
+    <!-- Section 4: LOA QA Planner -->
+    <div class="section" id="loa">
+      <div class="section-header">
+        <span class="section-icon">📋</span>
+        <div>
+          <div class="section-num">SECTION 4</div>
+          <h2>LOA QA Planner</h2>
+        </div>
+      </div>
+
+      <div class="callout warning">
+        <span class="callout-icon">⚠️</span>
+        <div>This tool covers only LoAs <strong>within FAO Ukraine's delegated authority (≤ USD 100,000)</strong>. For LoAs above this amount, submit directly to the CSLP/LOA Unit.</div>
+      </div>
+
+      <p>The LOA QA Planner estimates the time required to complete the full quality assurance process for a Letter of Agreement — from documentation preparation through GRMS order approval. It covers both new LoAs and amendments, and automatically includes LPC review steps when the value exceeds the threshold.</p>
+
+      <h3>Process types</h3>
+      <table>
+        <thead><tr><th>Process</th><th>When to use</th></tr></thead>
+        <tbody>
+          <tr><td><strong>New LoA — Direct Selection</strong></td><td>Single-source LoA with written justification</td></tr>
+          <tr><td><strong>New LoA — Competitive (EOI)</strong></td><td>Open Expression of Interest to select a partner</td></tr>
+          <tr><td><strong>New LoA — Competitive (IFP with scoring criteria)</strong></td><td>Invitation for Proposals with evaluation criteria; triggers LPC ex-ante if value &gt; USD 25,000</td></tr>
+          <tr><td><strong>Amendment — No Cost</strong></td><td>Extension or scope change with no budget change</td></tr>
+          <tr><td><strong>Amendment — Additional Cost</strong></td><td>Increase in LoA value</td></tr>
+          <tr><td><strong>Amendment — Reduction of Cost</strong></td><td>Decrease in LoA value</td></tr>
+        </tbody>
+      </table>
+
+      <h3>LPC review — when it applies</h3>
+      <p>LPC review steps are <strong>automatically included</strong> when the LoA value exceeds <strong>USD 25,000</strong>.</p>
+      <ul>
+        <li>For <strong>IFP</strong> processes above the threshold: two LPC stages — <em>ex-ante</em> (endorsement of scoring criteria before issuance) and <em>ex-post</em> (review after proposal evaluation).</li>
+        <li>For <strong>EOI and additional-cost amendments</strong> above the threshold: a single LPC review step is added.</li>
+        <li>At or below USD 25,000: LPC steps are removed automatically.</li>
+      </ul>
+
+      <h3>Creating a LOA plan — step by step</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Click "+ New" in the sidebar</strong></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Enter plan details</strong>
+          <table style="margin-top:8px">
+            <tr><th>Field</th><th>What to enter</th></tr>
+            <tr><td>Plan Name</td><td>e.g. "Seeds distribution — NGO Name"</td></tr>
+            <tr><td>Process Type</td><td>Select from the six process types above</td></tr>
+            <tr><td>LoA Value (USD)</td><td>Determines whether LPC steps are included; triggers alert if &gt; USD 100,000</td></tr>
+            <tr><td>Process Start Date</td><td>The date the RO begins preparing documentation</td></tr>
+          </table>
+        </div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Set target dates (optional but recommended)</strong><p><strong>Desired LoA Signing Date</strong> — date by which the LoA must be effective. The tool shows immediately whether this is feasible. <strong>LoA End Date</strong> — planned end of the implementation period (for reference).</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><strong>Review feasibility</strong><p>If the target cannot be met from the chosen start date, a red banner shows the <strong>latest required start date</strong> to meet the target.</p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><strong>Review the Step Details tab</strong><p>Shows each step with earliest start, latest end, and min–max working days.</p></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><strong>View the Gantt Chart tab</strong><p>Visual timeline with draggable bars. Drag any bar left or right — all subsequent steps shift automatically. Hover over a bar for a tooltip with dates and duration. If a target date is set, a coloured vertical marker shows feasibility (green = ok, red = not feasible).</p></div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-body"><strong>Customize steps (optional)</strong><p>Click <strong>✏️ Customize Steps</strong> at the bottom of the Step Details tab to adjust durations, rename steps, add or remove steps. Click "Reset to defaults" to restore the standard template.</p></div></div>
+        <div class="step"><div class="step-num">8</div><div class="step-body"><strong>Share a monitoring link</strong><p>Click <strong>📤 Share Monitor Link</strong> in the plan header to copy a direct URL to this plan.</p></div></div>
+      </div>
+    </div>
+
+    <!-- Section 5: Settings -->
+    <div class="section" id="settings">
+      <div class="section-header">
+        <span class="section-icon">⚙️</span>
+        <div>
+          <div class="section-num">SECTION 5</div>
+          <h2>Settings &amp; Profiles</h2>
+        </div>
+      </div>
+      <p>Access Settings via the <strong>⚙️</strong> button in the Procurement Timeline Estimator header. Settings are split into two tabs:</p>
+
+      <h3>Procurement Profiles</h3>
+      <p>Profiles let you configure different lead time sets for different operational contexts (e.g. different field offices, emergency vs. standard procedures).</p>
+      <ul>
+        <li><strong>Default profile</strong> — the baseline lead times used unless another profile is active. You can modify its lead times directly.</li>
+        <li><strong>Creating a custom profile:</strong> click <strong>+ New Profile</strong>, give it a name, set custom min/max durations per process step, then Save. The profile becomes available in both the Procurement Estimator and the Agricultural Planner.</li>
+        <li><strong>Activating a profile:</strong> click <strong>Set Active</strong>. The active profile's lead times are used for all new timeline calculations.</li>
+      </ul>
+
+      <h3>LOA QA Settings</h3>
+      <p>Configure lead times for each of the six LOA process types. Changes apply globally (there are no per-profile LOA settings).</p>
+      <ul>
+        <li><strong>LPC threshold</strong> — value above which LPC review steps are triggered. Default: USD 25,000.</li>
+        <li><strong>Authority limit</strong> — maximum LoA value within FAO Ukraine's delegated authority. Default: USD 100,000.</li>
+        <li>To adjust step durations, expand a process type and set min/max working days per step.</li>
+      </ul>
+    </div>
+
+    <!-- Section 6: Sharing -->
+    <div class="section" id="sharing">
+      <div class="section-header">
+        <span class="section-icon">🔗</span>
+        <div>
+          <div class="section-num">SECTION 6</div>
+          <h2>Sharing &amp; Monitoring Links</h2>
+        </div>
+      </div>
+
+      <h3>Procurement Timeline Estimator</h3>
+      <ol>
+        <li>Configure the full timeline (process type, dates, modifiers).</li>
+        <li>Click <strong>Share Monitor Link</strong>.</li>
+        <li>Enter the PR number (required) and a label (optional).</li>
+        <li>Click <strong>Generate &amp; Copy Link</strong> — the URL is copied to your clipboard.</li>
+        <li>Share via email or Teams.</li>
+      </ol>
+      <p>Recipients open the link and see the timeline in <strong>tracking mode</strong>, where they can record actual completion dates for each phase.</p>
+
+      <h3>LOA QA Planner</h3>
+      <ol>
+        <li>Open the plan you want to share.</li>
+        <li>Click <strong>📤 Share Monitor Link</strong> in the plan header.</li>
+        <li>The URL is copied immediately — share it directly.</li>
+      </ol>
+      <p>Recipients opening the link are taken directly to that plan.</p>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div>Procurement monitoring links are <strong>self-contained</strong> — the full plan snapshot is encoded in the URL itself, so recipients don't need an account or access to any database to view it.</div>
+      </div>
+    </div>
+
+    <!-- Section 7: Thresholds -->
+    <div class="section" id="thresholds">
+      <div class="section-header">
+        <span class="section-icon">📊</span>
+        <div>
+          <div class="section-num">SECTION 7</div>
+          <h2>Quick Reference: Procurement Thresholds</h2>
+        </div>
+      </div>
+
+      <h3>Goods &amp; Services</h3>
+      <table class="threshold-high">
+        <thead><tr><th>Value range (USD)</th><th>Method</th></tr></thead>
+        <tbody>
+          <tr><td>&lt; 1,000</td><td>Very Low Value</td></tr>
+          <tr><td>1,000 – 4,999</td><td>Micro Purchase</td></tr>
+          <tr><td>5,000 – 24,999</td><td>Request for Quotation (RFQ)</td></tr>
+          <tr><td>≥ 25,000</td><td>Invitation to Bid (ITB)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Works</h3>
+      <table class="threshold-high">
+        <thead><tr><th>Value range (USD)</th><th>Method</th></tr></thead>
+        <tbody>
+          <tr><td>&lt; 1,000</td><td>Very Low Value</td></tr>
+          <tr><td>1,000 – 4,999</td><td>Micro Purchase</td></tr>
+          <tr><td>5,000 – 24,999</td><td>RFQ</td></tr>
+          <tr><td>≥ 25,000</td><td>ITB (Works)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>LOA thresholds</h3>
+      <table>
+        <thead><tr><th>Threshold</th><th>Trigger</th></tr></thead>
+        <tbody>
+          <tr><td><code>&gt; USD 25,000</code></td><td>LPC review steps added to the LOA process timeline</td></tr>
+          <tr><td><code>&gt; USD 100,000</code></td><td>Outside FAO Ukraine delegated authority — submit to CSLP/LOA Unit</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<div class="page-footer">
+  FAO Ukraine Country Office — Procurement &amp; Planning Tools · <em>Last updated April 2026</em>
+</div>
+
+</body>
+</html>

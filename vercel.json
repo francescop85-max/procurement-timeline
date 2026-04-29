@@ -3,6 +3,7 @@
     { "source": "/planner", "destination": "/planner.html" },
     { "source": "/planner/(.*)", "destination": "/planner.html" },
     { "source": "/loa", "destination": "/loa.html" },
-    { "source": "/loa/(.*)", "destination": "/loa.html" }
+    { "source": "/loa/(.*)", "destination": "/loa.html" },
+    { "source": "/guide", "destination": "/guide.html" }
   ]
 }
