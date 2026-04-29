@@ -188,6 +188,8 @@ export const MODIFIERS = [
     applicable: ["itb_works"], insertBefore: "ITB issuance (public — UNGM)" },
 ];
 
+export const DEFAULT_PROFILE = { id: 'default', name: 'Default', countryCode: 'UA', leadTimes: {} };
+
 export const QUICK_REF = [
   ["Very Low Value", "< $1,000", "Direct award", "None", "2–3 days"],
   ["Micro Purchasing", "$1K – < $5K", "Lowest of 3 quotes", "None (Canvassing Form)", "3–6 days"],

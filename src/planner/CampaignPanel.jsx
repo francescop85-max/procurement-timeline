@@ -32,7 +32,7 @@ const EMPTY_FORM = {
   remarks: '',
 };
 
-export default function CampaignPanel({ campaign, onSave, onClose }) {
+export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
   const { holidays } = useHolidays();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showAllMods, setShowAllMods] = useState(false);
@@ -68,6 +68,7 @@ export default function CampaignPanel({ campaign, onSave, onClose }) {
       ? { label: form.customModifier.label, days: Number(form.customModifier.days), position: form.customModifier.position !== '' ? Number(form.customModifier.position) : undefined }
       : null;
     try {
+      const baseSteps = profile?.processSteps?.[method] ?? null;
       const result = computeBackwardTimeline(
         form.plantingDate,
         method,
@@ -77,6 +78,7 @@ export default function CampaignPanel({ campaign, onSave, onClose }) {
         holidays,
         PROCESSES,
         MODIFIERS,
+        baseSteps,
       );
       setComputed({ ...result, method });
     } catch {
@@ -243,7 +245,7 @@ export default function CampaignPanel({ campaign, onSave, onClose }) {
               onChange={e => set('customModifier', { ...form.customModifier, position: e.target.value })}
             >
               <option value="">— Before first step —</option>
-              {buildSteps(activeMethod, form.activeMods, PROCESSES, MODIFIERS).map((s, i) => (
+              {buildSteps(activeMethod, form.activeMods, PROCESSES, MODIFIERS, profile?.processSteps?.[activeMethod] ?? null).map((s, i) => (
                 <option key={i} value={i + 1}>After step {i + 1}: {s.name}</option>
               ))}
             </select>
