@@ -43,8 +43,8 @@ export function toISO(d) {
   return new Date(d).toLocaleDateString('sv');
 }
 
-export function buildSteps(procKey, activeMods, PROCESSES, MODIFIERS) {
-  let steps = PROCESSES[procKey].steps.map(s => ({ ...s }));
+export function buildSteps(procKey, activeMods, PROCESSES, MODIFIERS, baseSteps = null) {
+  let steps = (baseSteps ?? PROCESSES[procKey].steps).map(s => ({ ...s }));
   activeMods.forEach(modKey => {
     const mod = MODIFIERS.find(m => m.key === modKey);
     if (!mod || !mod.applicable.includes(procKey)) return;
@@ -185,8 +185,9 @@ export function computeBackwardTimeline(
   holidays = new Set(),
   PROCESSES,
   MODIFIERS,
+  baseSteps = null,
 ) {
-  const steps = buildSteps(processKey, activeMods, PROCESSES, MODIFIERS);
+  const steps = buildSteps(processKey, activeMods, PROCESSES, MODIFIERS, baseSteps);
 
   if (customModifier && customModifier.label && customModifier.days > 0) {
     const insertAt = customModifier.position != null && customModifier.position !== ''

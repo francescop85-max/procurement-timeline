@@ -2,11 +2,15 @@
 import { useState } from 'react';
 import { useHolidays } from '../hooks/useHolidays.js';
 import { useCampaigns } from './useCampaigns.js';
-import { PROCESSES, MODIFIERS } from '../data.js';
+import { PROCESSES, MODIFIERS, DEFAULT_PROFILE } from '../data.js';
 import { computeBackwardTimeline, computeCampaignStatus, computeProjectStatuses } from '../utils.js';
 import PlannerTimeline from './PlannerTimeline.jsx';
 import CampaignTable from './CampaignTable.jsx';
 import CampaignPanel from './CampaignPanel.jsx';
+
+function loadLS(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
 
 export default function PlannerApp() {
   const { holidays } = useHolidays();
@@ -17,6 +21,17 @@ export default function PlannerApp() {
   // null = panel closed; 'add' = new; campaign object = edit mode
   const [panelMode, setPanelMode] = useState(null);
   const [liveSteps, setLiveSteps] = useState(null);
+
+  // Profile selection
+  const [profiles] = useState(() => {
+    const custom = loadLS('procurement_profiles', []);
+    const defaultOverride = loadLS('procurement_default_override', null);
+    return [defaultOverride ?? DEFAULT_PROFILE, ...custom];
+  });
+  const [selectedProfileId, setSelectedProfileId] = useState(
+    () => loadLS('procurement_active_profile_id', 'default')
+  );
+  const selectedProfile = profiles.find(p => p.id === selectedProfileId) ?? profiles[0];
 
   const selectedCampaign = selectedId ? campaigns.find(c => c.id === selectedId) : null;
 
@@ -41,6 +56,7 @@ export default function PlannerApp() {
   }
 
   async function handlePanelSave(formData) {
+    const baseSteps = selectedProfile.processSteps?.[formData.selectedMethod] ?? null;
     const timeline = computeBackwardTimeline(
       formData.plantingDate,
       formData.selectedMethod,
@@ -50,6 +66,7 @@ export default function PlannerApp() {
       holidays,
       PROCESSES,
       MODIFIERS,
+      baseSteps,
     );
 
     const campaign = {
@@ -64,6 +81,7 @@ export default function PlannerApp() {
       deliveryWeeks: formData.deliveryWeeks,
       fundingProjects: formData.fundingProjects,
       remarks: formData.remarks,
+      profileId: selectedProfile.id,
       prDeadline: timeline.prDeadline,
       poDeadline: timeline.poDeadline,
       deliveryDeadline: timeline.deliveryDeadline,
@@ -89,6 +107,21 @@ export default function PlannerApp() {
         <span style={{ fontSize: 18 }}>🌱</span>
         <span className="planner-header-title">FAO Ukraine — Agricultural Input Planner</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Profile selector */}
+          {profiles.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Profile:</span>
+              <select
+                value={selectedProfileId}
+                onChange={e => setSelectedProfileId(e.target.value)}
+                style={{ fontSize: 12, borderRadius: 5, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '4px 8px', cursor: 'pointer' }}
+              >
+                {profiles.map(p => (
+                  <option key={p.id} value={p.id} style={{ color: '#333', background: '#fff' }}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <button
             className="planner-print-btn"
             onClick={() => window.print()}
@@ -125,6 +158,7 @@ export default function PlannerApp() {
           <div className="planner-panel-overlay" onClick={() => setPanelMode(null)} />
           <CampaignPanel
             campaign={panelMode === 'add' ? null : panelMode}
+            profile={selectedProfile}
             holidays={holidays}
             onSave={handlePanelSave}
             onClose={() => setPanelMode(null)}

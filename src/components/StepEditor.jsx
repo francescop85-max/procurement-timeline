@@ -16,10 +16,12 @@ import { CSS } from "@dnd-kit/utilities";
 
 const EMPTY_NEW = { name: "", owner: "", minDays: "", maxDays: "" };
 
-function SortableStep({ step, index, onDelete, onUpdate }) {
+function SortableStep({ step, index, onDelete, onUpdate, allowNameEdit }) {
   const [editing, setEditing] = useState(false);
   const [editMin, setEditMin] = useState(String(step.minDays));
   const [editMax, setEditMax] = useState(String(step.maxDays));
+  const [editName, setEditName] = useState(step.name);
+  const [editOwner, setEditOwner] = useState(step.owner);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: step._id });
@@ -39,7 +41,12 @@ function SortableStep({ step, index, onDelete, onUpdate }) {
     const min = parseInt(editMin, 10);
     const max = parseInt(editMax, 10);
     if (!isNaN(min) && !isNaN(max) && min >= 1 && max >= min) {
-      onUpdate(index, { minDays: min, maxDays: max });
+      const patch = { minDays: min, maxDays: max };
+      if (allowNameEdit) {
+        if (editName.trim()) patch.name = editName.trim();
+        if (editOwner.trim()) patch.owner = editOwner.trim();
+      }
+      onUpdate(index, patch);
     } else {
       setEditMin(String(step.minDays));
       setEditMax(String(step.maxDays));
@@ -67,7 +74,7 @@ function SortableStep({ step, index, onDelete, onUpdate }) {
           </div>
         </div>
         <button
-          onClick={() => { setEditing(e => !e); setEditMin(String(step.minDays)); setEditMax(String(step.maxDays)); }}
+          onClick={() => { setEditing(e => !e); setEditMin(String(step.minDays)); setEditMax(String(step.maxDays)); setEditName(step.name); setEditOwner(step.owner); }}
           title="Edit days"
           style={{ background: "none", border: "none", cursor: "pointer", color: "#1a5276", fontSize: 14, padding: "2px 4px", flexShrink: 0 }}
         >
@@ -83,31 +90,54 @@ function SortableStep({ step, index, onDelete, onUpdate }) {
       </div>
 
       {editing && (
-        <div style={{ padding: "6px 8px 8px", borderTop: "1px solid #f0f0f0", display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 10, color: "#888", display: "block", marginBottom: 2 }}>Min days</label>
-            <input
-              type="number" min="1"
-              value={editMin}
-              onChange={e => setEditMin(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && commitEdit()}
-              style={{ width: "100%", border: "1px solid #ccc", borderRadius: 4, padding: "3px 6px", fontSize: 13 }}
-              autoFocus
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 10, color: "#888", display: "block", marginBottom: 2 }}>Max days</label>
-            <input
-              type="number" min="1"
-              value={editMax}
-              onChange={e => setEditMax(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && commitEdit()}
-              style={{ width: "100%", border: "1px solid #ccc", borderRadius: 4, padding: "3px 6px", fontSize: 13 }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 4, marginTop: 14 }}>
-            <button onClick={commitEdit} style={{ padding: "3px 10px", borderRadius: 4, border: "none", background: "#1a5276", color: "#fff", fontSize: 12, cursor: "pointer" }}>✓</button>
-            <button onClick={() => setEditing(false)} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #ccc", background: "#f5f5f5", fontSize: 12, cursor: "pointer" }}>✕</button>
+        <div style={{ padding: "6px 8px 8px", borderTop: "1px solid #f0f0f0" }}>
+          {allowNameEdit && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 5 }}>
+              <div>
+                <label style={{ fontSize: 10, color: "#888", display: "block", marginBottom: 2 }}>Step name</label>
+                <input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  style={{ width: "100%", border: "1px solid #ccc", borderRadius: 4, padding: "3px 6px", fontSize: 12, boxSizing: "border-box" }}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 10, color: "#888", display: "block", marginBottom: 2 }}>Owner</label>
+                <input
+                  value={editOwner}
+                  onChange={e => setEditOwner(e.target.value)}
+                  style={{ width: "100%", border: "1px solid #ccc", borderRadius: 4, padding: "3px 6px", fontSize: 12, boxSizing: "border-box" }}
+                />
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 10, color: "#888", display: "block", marginBottom: 2 }}>Min days</label>
+              <input
+                type="number" min="1"
+                value={editMin}
+                onChange={e => setEditMin(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && commitEdit()}
+                style={{ width: "100%", border: "1px solid #ccc", borderRadius: 4, padding: "3px 6px", fontSize: 13 }}
+                autoFocus={!allowNameEdit}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 10, color: "#888", display: "block", marginBottom: 2 }}>Max days</label>
+              <input
+                type="number" min="1"
+                value={editMax}
+                onChange={e => setEditMax(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && commitEdit()}
+                style={{ width: "100%", border: "1px solid #ccc", borderRadius: 4, padding: "3px 6px", fontSize: 13 }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 4, marginTop: 14 }}>
+              <button onClick={commitEdit} style={{ padding: "3px 10px", borderRadius: 4, border: "none", background: "#1a5276", color: "#fff", fontSize: 12, cursor: "pointer" }}>✓</button>
+              <button onClick={() => setEditing(false)} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #ccc", background: "#f5f5f5", fontSize: 12, cursor: "pointer" }}>✕</button>
+            </div>
           </div>
         </div>
       )}
@@ -115,7 +145,7 @@ function SortableStep({ step, index, onDelete, onUpdate }) {
   );
 }
 
-export default function StepEditor({ steps, onStepsChange, onReset, procColor }) {
+export default function StepEditor({ steps, onStepsChange, onReset, procColor, allowNameEdit = false }) {
   const [newStep, setNewStep] = useState(EMPTY_NEW);
   const [addError, setAddError] = useState("");
 
@@ -179,7 +209,7 @@ export default function StepEditor({ steps, onStepsChange, onReset, procColor })
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={stepsWithIds.map(s => s._id)} strategy={verticalListSortingStrategy}>
           {stepsWithIds.map((step, i) => (
-            <SortableStep key={step._id} step={step} index={i} onDelete={handleDelete} onUpdate={handleUpdate} />
+            <SortableStep key={step._id} step={step} index={i} onDelete={handleDelete} onUpdate={handleUpdate} allowNameEdit={allowNameEdit} />
           ))}
         </SortableContext>
       </DndContext>

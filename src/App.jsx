@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
-import { PROCESSES, MODIFIERS, QUICK_REF, FAO_DARK, FAO_BLUE } from "./data";
+import { PROCESSES, MODIFIERS, QUICK_REF, FAO_DARK, FAO_BLUE, DEFAULT_PROFILE } from "./data";
 import { toISO, formatDate, buildSteps, computeTimeline, computeTrackingTimeline, computeOverallStatus, subtractWorkingDays, countWorkingDays, addWorkingDays, encodePlanToHash, decodePlanFromHash, derivePlanId } from "./utils";
 import GanttChart from "./components/GanttChart";
 import StepEditor from "./components/StepEditor";
@@ -690,8 +690,6 @@ function MonitoredPlansPage({ plans, loading, onOpen, onRemove }) {
 
 // ── Main App ──
 
-const DEFAULT_PROFILE = { id: 'default', name: 'Default', countryCode: 'UA', leadTimes: {} };
-
 export default function App() {
   function loadLS(key, fallback) {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -709,12 +707,15 @@ export default function App() {
   const [stepOverride, setStepOverride] = useState(null); // null = use defaults
   const [profiles, setProfiles] = useState(() => loadLS('procurement_profiles', []));
   const [activeProfileId, setActiveProfileId] = useState(() => loadLS('procurement_active_profile_id', 'default'));
+  const [defaultOverride, setDefaultOverride] = useState(() => loadLS('procurement_default_override', null));
   useEffect(() => { saveLS('procurement_profiles', profiles); }, [profiles]);
   useEffect(() => { saveLS('procurement_active_profile_id', activeProfileId); }, [activeProfileId]);
+  useEffect(() => { saveLS('procurement_default_override', defaultOverride); }, [defaultOverride]);
 
+  const effectiveDefault = defaultOverride ?? DEFAULT_PROFILE;
   const activeProfile = activeProfileId === 'default'
-    ? DEFAULT_PROFILE
-    : (profiles.find(p => p.id === activeProfileId) ?? DEFAULT_PROFILE);
+    ? effectiveDefault
+    : (profiles.find(p => p.id === activeProfileId) ?? effectiveDefault);
   const countryCode = activeProfile.countryCode;
   const leadTimeOverrides = activeProfile.leadTimes;
 
@@ -824,9 +825,9 @@ export default function App() {
     });
   }
 
-  const steps = selected
-    ? (stepOverride ?? applyLeadTimeOverrides(buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS)))
-    : [];
+  const profileBaseSteps = selected ? (activeProfile.processSteps?.[selected] ?? null) : null;
+  const rawSteps = selected ? buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS, profileBaseSteps) : [];
+  const steps = selected ? (stepOverride ?? applyLeadTimeOverrides(rawSteps)) : [];
   // Original (planned) timeline — always the baseline
   const originalTimeline = steps.length && prDate ? computeTimeline(steps, prDate, holidays) : [];
   // Tracking timeline — cascades from actuals when in tracking mode
@@ -928,7 +929,8 @@ export default function App() {
     selected,
     prDate,
     activeMods: effectiveActiveMods,
-    stepOverride: stepOverride ?? undefined,
+    // Embed the resolved step list so shared URLs are always self-contained
+    stepOverride: stepOverride ?? (profileBaseSteps ? steps : undefined),
     countryCode: countryCode !== 'UA' ? countryCode : undefined,
     leadTimeOverrides: Object.keys(leadTimeOverrides).length ? leadTimeOverrides : undefined,
     deliveryWeeks,
@@ -947,18 +949,25 @@ export default function App() {
         <SettingsPage
           profiles={profiles}
           activeProfileId={activeProfileId}
-          defaultProfile={DEFAULT_PROFILE}
+          defaultProfile={effectiveDefault}
+          builtInDefault={DEFAULT_PROFILE}
           onSaveProfile={(profile) => {
-            setProfiles(prev => {
-              const idx = prev.findIndex(p => p.id === profile.id);
-              return idx >= 0 ? prev.map(p => p.id === profile.id ? profile : p) : [...prev, profile];
-            });
-            setActiveProfileId(profile.id);
+            if (profile.id === 'default') {
+              setDefaultOverride(profile);
+              setActiveProfileId('default');
+            } else {
+              setProfiles(prev => {
+                const idx = prev.findIndex(p => p.id === profile.id);
+                return idx >= 0 ? prev.map(p => p.id === profile.id ? profile : p) : [...prev, profile];
+              });
+              setActiveProfileId(profile.id);
+            }
           }}
           onDeleteProfile={(id) => {
             setProfiles(prev => prev.filter(p => p.id !== id));
             if (activeProfileId === id) setActiveProfileId('default');
           }}
+          onResetDefault={() => setDefaultOverride(null)}
           onActivateProfile={(id) => setActiveProfileId(id)}
           onBack={() => setView('overview')}
         />
