@@ -36,7 +36,8 @@ export function countWorkingDays(from, to, holidays = new Set()) {
 }
 
 export function formatDate(d) {
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const date = d instanceof Date ? d : new Date(d);
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 export function toISO(d) {
