@@ -125,6 +125,9 @@ export default function LoaApp() {
           <a href="/planner" style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, textDecoration: 'none', padding: '4px 10px', borderRadius: 5, border: '1px solid rgba(255,255,255,0.25)' }}>
             Planner
           </a>
+          <a href="https://github.com/francescop85-max/procurement_timeline/blob/main/docs/user-guide/README.md" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, textDecoration: 'none', padding: '4px 10px', borderRadius: 5, border: '1px solid rgba(255,255,255,0.25)' }}>
+            📖 User Guide
+          </a>
         </div>
       </div>
 

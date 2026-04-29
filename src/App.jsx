@@ -1037,6 +1037,26 @@ export default function App() {
           >
             📋 LOA QA Planner
           </a>
+          <a
+            href="https://github.com/francescop85-max/procurement_timeline/blob/main/docs/user-guide/README.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              marginLeft: 8,
+              fontSize: 11,
+              color: '#fff',
+              opacity: 0.7,
+              border: '1px solid rgba(255,255,255,0.3)',
+              padding: '3px 10px',
+              borderRadius: 3,
+              textDecoration: 'none',
+              flexShrink: 0,
+            }}
+            onMouseOver={e => { e.currentTarget.style.opacity = '1'; }}
+            onMouseOut={e => { e.currentTarget.style.opacity = '0.7'; }}
+          >
+            📖 User Guide
+          </a>
         </div>
       </div>
 
