@@ -1,6 +1,132 @@
 import { useState, useEffect } from "react";
 import { PROCESSES } from "../data";
+import { LOA_PROCESSES, LOA_DEFAULTS, loadLoaSettings, saveLoaSettings } from "../loa/data";
 import StepEditor from "./StepEditor";
+
+const LOA_PROC_KEYS = Object.keys(LOA_PROCESSES);
+
+function LoaStepEditor({ procKey, steps, onChange }) {
+  const [expanded, setExpanded] = useState(false);
+  const proc = LOA_PROCESSES[procKey];
+  const defaults = LOA_PROCESSES[procKey].steps;
+  const hasOverride = steps.length !== defaults.length || steps.some((s, i) =>
+    !defaults[i] || s.name !== defaults[i].name || s.minDays !== defaults[i].minDays || s.maxDays !== defaults[i].maxDays
+  );
+  return (
+    <div style={{ border: '1px solid #e8e8e8', borderRadius: 8, marginBottom: 8, overflow: 'hidden' }}>
+      <button
+        onClick={() => setExpanded(e => !e)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: hasOverride ? '#fffbe6' : '#fafafa', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}
+      >
+        <span>
+          <span style={{ fontWeight: 700, color: proc.color }}>{proc.label}</span>
+          {hasOverride && <span style={{ fontSize: 10, color: '#b7770d', marginLeft: 6, fontWeight: 600 }}>modified</span>}
+        </span>
+        <span style={{ color: '#999', fontSize: 12 }}>{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <div style={{ padding: '12px 14px' }}>
+          <StepEditor
+            steps={steps}
+            onStepsChange={onChange}
+            onReset={() => onChange(LOA_PROCESSES[procKey].steps.map(s => ({ ...s })))}
+            procColor={proc.color}
+            allowNameEdit={true}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LoaSettingsPanel() {
+  const [settings, setSettings] = useState(() => {
+    const saved = loadLoaSettings();
+    return {
+      lpcThreshold: saved?.lpcThreshold ?? LOA_DEFAULTS.lpcThreshold,
+      authorityLimit: saved?.authorityLimit ?? LOA_DEFAULTS.authorityLimit,
+      processSteps: saved?.processSteps ?? {},
+    };
+  });
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 2000);
+    return () => clearTimeout(t);
+  }, [saved]);
+
+  function getSteps(key) {
+    return settings.processSteps?.[key] ?? LOA_PROCESSES[key].steps.map(s => ({ ...s }));
+  }
+
+  function handleStepsChange(key, newSteps) {
+    setSettings(prev => ({ ...prev, processSteps: { ...prev.processSteps, [key]: newSteps } }));
+  }
+
+  function handleSave() {
+    saveLoaSettings(settings);
+    setSaved(true);
+  }
+
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ background: '#fff', borderRadius: 10, padding: '18px 20px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: '#1a2e44' }}>Thresholds</div>
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', display: 'block', marginBottom: 5 }}>LPC trigger threshold (USD)</label>
+            <input
+              type="number" min="0"
+              value={settings.lpcThreshold}
+              onChange={e => setSettings(prev => ({ ...prev, lpcThreshold: Number(e.target.value) }))}
+              style={{ border: '1.5px solid #ddd', borderRadius: 6, padding: '7px 10px', fontSize: 14, width: 140 }}
+            />
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>LPC steps appear when LoA value exceeds this</div>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', display: 'block', marginBottom: 5 }}>Delegated authority limit (USD)</label>
+            <input
+              type="number" min="0"
+              value={settings.authorityLimit}
+              onChange={e => setSettings(prev => ({ ...prev, authorityLimit: Number(e.target.value) }))}
+              style={{ border: '1.5px solid #ddd', borderRadius: 6, padding: '7px 10px', fontSize: 14, width: 140 }}
+            />
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>Alert shown when LoA value exceeds this</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <button
+            onClick={handleSave}
+            style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: '#1a2e44', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          >
+            {saved ? '✓ Saved' : 'Save settings'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 10, padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', marginBottom: 10 }}>
+          LOA Process Types — Steps &amp; Lead Times
+        </div>
+        {LOA_PROC_KEYS.map(key => (
+          <LoaStepEditor key={key} procKey={key} steps={getSteps(key)} onChange={newSteps => handleStepsChange(key, newSteps)} />
+        ))}
+        <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+          Drag to reorder, click ✏️ to edit a step, × to delete. Click "Save settings" above to apply.
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <button
+            onClick={handleSave}
+            style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: '#1a2e44', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          >
+            {saved ? '✓ Saved' : 'Save settings'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const FALLBACK_COUNTRIES = [
   { code: 'AF', name: 'Afghanistan' }, { code: 'AL', name: 'Albania' },
@@ -140,6 +266,7 @@ function ProcessStepsEditor({ procKey, steps, onChange }) {
 export default function SettingsPage({ profiles, activeProfileId, defaultProfile, builtInDefault, onSaveProfile, onDeleteProfile, onResetDefault, onActivateProfile, onBack }) {
   const countryList = useCountries();
   const allProfiles = [defaultProfile, ...profiles];
+  const [settingsTab, setSettingsTab] = useState('procurement');
   const [selectedId, setSelectedId] = useState(activeProfileId);
   const selectedProfile = allProfiles.find(p => p.id === selectedId) || defaultProfile;
   const isDefault = selectedProfile.id === 'default';
@@ -215,10 +342,23 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
         >
           ← Back to app
         </button>
-        <div style={{ fontWeight: 700, fontSize: 18 }}>⚙️ Settings — Lead Time Profiles</div>
+        <div style={{ fontWeight: 700, fontSize: 18 }}>⚙️ Settings</div>
+        <div style={{ marginLeft: 24, display: 'flex', gap: 4 }}>
+          {[{ key: 'procurement', label: 'Procurement Profiles' }, { key: 'loa', label: 'LOA QA' }].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setSettingsTab(tab.key)}
+              style={{ padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: settingsTab === tab.key ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff' }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ display: 'flex', maxWidth: 1100, margin: '0 auto', padding: 24, gap: 24, alignItems: 'flex-start' }}>
+        {settingsTab === 'loa' && <LoaSettingsPanel />}
+        {settingsTab === 'procurement' && <>
 
         {/* Left sidebar: profile list */}
         <div style={{ width: 220, flexShrink: 0 }}>
@@ -328,6 +468,7 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
             Drag to reorder, click ✏️ to edit a step, × to delete. Click "Save &amp; activate" to apply. Modified methods are highlighted.
           </div>
         </div>
+      </>}
       </div>
     </div>
   );

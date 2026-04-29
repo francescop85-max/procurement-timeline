@@ -1019,6 +1019,24 @@ export default function App() {
           >
             🌱 Agricultural Planner
           </a>
+          <a
+            href="/loa"
+            style={{
+              marginLeft: 8,
+              fontSize: 11,
+              color: '#fff',
+              opacity: 0.7,
+              border: '1px solid rgba(255,255,255,0.3)',
+              padding: '3px 10px',
+              borderRadius: 3,
+              textDecoration: 'none',
+              flexShrink: 0,
+            }}
+            onMouseOver={e => { e.currentTarget.style.opacity = '1'; }}
+            onMouseOut={e => { e.currentTarget.style.opacity = '0.7'; }}
+          >
+            📋 LOA QA Planner
+          </a>
         </div>
       </div>
 

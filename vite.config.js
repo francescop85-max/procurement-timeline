@@ -13,6 +13,7 @@ export default defineConfig({
       input: {
         main: 'index.html',
         planner: 'planner.html',
+        loa: 'loa.html',
       },
     },
   },
