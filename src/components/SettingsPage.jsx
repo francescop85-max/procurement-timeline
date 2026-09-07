@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { PROCESSES } from "../data";
+import { PROCESSES, OFFICE_TIERS, AUTHORITY_LIMITS, DEFAULT_TIER, DEFAULT_IPO_GRADE,
+         thresholdLabel, lpcThreshold, hqpcThreshold, authorityOf, effectiveGrade,
+         RPC_MIN, RPC_MAX } from "../data";
 import { LOA_PROCESSES, LOA_DEFAULTS, loadLoaSettings, saveLoaSettings } from "../loa/data";
 import StepEditor from "./StepEditor";
 
@@ -178,6 +180,52 @@ function useCountries() {
   return countries;
 }
 
+const fmt = n => `USD ${n.toLocaleString("en-US")}`;
+
+/** Live read-out of the thresholds the selected office tier produces. */
+function ThresholdSummary({ tier, ipoGrade }) {
+  const lpc = lpcThreshold(tier);
+  const hqpc = hqpcThreshold(tier);
+  const auth = authorityOf(ipoGrade, tier);
+  const rows = [
+    ["VLVP", thresholdLabel("very_low", tier)],
+    ["Micro Purchasing", thresholdLabel("micro", tier)],
+    ["RFQ", thresholdLabel("rfq", tier)],
+    ["ITB / RFP", `Above ${fmt(lpc)}`],
+  ];
+  const committees = [
+    ["LPC Review Threshold", `Above ${fmt(lpc)} — the ITB/RFP value (App. F2 §2)`],
+    ["RPC", `${fmt(RPC_MIN)} – ${fmt(RPC_MAX)} — Exceptional / Distributed / Direct awards only`],
+    ["HQPC", `Above ${fmt(hqpc)} — Exceptional / Distributed / Direct awards only`],
+    ["HQPC (any basis)", "Above USD 5,000,000 — ex ante, never waivable"],
+  ];
+  if (tier !== "hq") {
+    committees.push(["FAO Rep authority",
+      `${fmt(auth.competitive)} competitive · ${fmt(auth.exceptional)} exceptional/direct (${auth.label})`]);
+  }
+  const cell = { padding: "4px 8px", fontSize: 12, verticalAlign: "top" };
+  const key = { ...cell, color: "#888", whiteSpace: "nowrap", fontWeight: 600 };
+  return (
+    <div style={{ marginTop: 16, padding: "12px 14px", background: "#f7f9fb", border: "1px solid #e3e9ee", borderRadius: 8 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#888", marginBottom: 8 }}>
+        Resulting thresholds — MS 502, 13 August 2026
+      </div>
+      <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+        <table><tbody>
+          {rows.map(([k, v]) => (
+            <tr key={k}><td style={key}>{k}</td><td style={{ ...cell, fontFamily: "var(--font-mono)" }}>{v}</td></tr>
+          ))}
+        </tbody></table>
+        <table><tbody>
+          {committees.map(([k, v]) => (
+            <tr key={k}><td style={key}>{k}</td><td style={cell}>{v}</td></tr>
+          ))}
+        </tbody></table>
+      </div>
+    </div>
+  );
+}
+
 const PROC_KEYS = Object.keys(PROCESSES);
 
 function buildDraftProcessSteps(profile) {
@@ -216,7 +264,7 @@ function draftToProcessSteps(draft) {
   return Object.keys(result).length ? result : undefined;
 }
 
-function ProcessStepsEditor({ procKey, steps, onChange }) {
+function ProcessStepsEditor({ procKey, steps, onChange, tier }) {
   const [expanded, setExpanded] = useState(false);
   const proc = PROCESSES[procKey];
   const defaults = PROCESSES[procKey].steps;
@@ -242,7 +290,7 @@ function ProcessStepsEditor({ procKey, steps, onChange }) {
       >
         <span>
           <span style={{ fontWeight: 700, color: proc.color }}>{proc.label}</span>
-          <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>{proc.threshold}</span>
+          <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>{thresholdLabel(procKey, tier)}</span>
           {hasOverride && <span style={{ fontSize: 10, color: '#b7770d', marginLeft: 6, fontWeight: 600 }}>modified</span>}
         </span>
         <span style={{ color: '#999', fontSize: 12 }}>{expanded ? '▲' : '▼'}</span>
@@ -273,6 +321,8 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
 
   const [draftName, setDraftName] = useState(selectedProfile.name);
   const [draftCountry, setDraftCountry] = useState(selectedProfile.countryCode);
+  const [draftTier, setDraftTier] = useState(selectedProfile.tier ?? DEFAULT_TIER);
+  const [draftIpoGrade, setDraftIpoGrade] = useState(selectedProfile.ipoGrade ?? DEFAULT_IPO_GRADE);
   const [draftProcessSteps, setDraftProcessSteps] = useState(() => buildDraftProcessSteps(selectedProfile));
   const [saved, setSaved] = useState(false);
 
@@ -286,6 +336,8 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
     const profile = allProfiles.find(p => p.id === selectedId) || defaultProfile;
     setDraftName(profile.name);
     setDraftCountry(profile.countryCode);
+    setDraftTier(profile.tier ?? DEFAULT_TIER);
+    setDraftIpoGrade(profile.ipoGrade ?? DEFAULT_IPO_GRADE);
     setDraftProcessSteps(buildDraftProcessSteps(profile));
   }, [selectedId]);
 
@@ -307,6 +359,8 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
       ...currentProfile,
       name: draftName.trim() || currentProfile.name,
       countryCode: draftCountry,
+      tier: draftTier,
+      ipoGrade: effectiveGrade(draftTier, draftIpoGrade),
       leadTimes: {},
       processSteps: draftToProcessSteps(draftProcessSteps),
     };
@@ -320,6 +374,8 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
       id: `profile_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       name: 'New Profile',
       countryCode: 'UA',
+      tier: DEFAULT_TIER,
+      ipoGrade: DEFAULT_IPO_GRADE,
       leadTimes: {},
     };
     onSaveProfile(newProfile);
@@ -424,6 +480,35 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
                   ))}
                 </select>
               </div>
+              <div style={{ minWidth: 230 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', display: 'block', marginBottom: 5 }}>Office tier (MS 502 App. G)</label>
+                <select
+                  value={draftTier}
+                  onChange={e => setDraftTier(e.target.value)}
+                  style={{ border: '1.5px solid #ddd', borderRadius: 6, padding: '7px 10px', fontSize: 13, width: '100%' }}
+                >
+                  {Object.entries(OFFICE_TIERS).map(([key, t]) => (
+                    <option key={key} value={key}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ minWidth: 190 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', display: 'block', marginBottom: 5 }}>IPO support (App. C1)</label>
+                <select
+                  value={effectiveGrade(draftTier, draftIpoGrade)}
+                  onChange={e => setDraftIpoGrade(e.target.value)}
+                  disabled={draftTier === 'without_ipo'}
+                  title={draftTier === 'without_ipo' ? 'An office without an IPO has no IPO grade' : undefined}
+                  style={{ border: '1.5px solid #ddd', borderRadius: 6, padding: '7px 10px', fontSize: 13, width: '100%',
+                           background: draftTier === 'without_ipo' ? '#f5f5f5' : '#fff' }}
+                >
+                  {Object.entries(AUTHORITY_LIMITS)
+                    .filter(([key]) => draftTier === 'without_ipo' ? key === 'none' : key !== 'none')
+                    .map(([key, a]) => (
+                      <option key={key} value={key}>{a.label.replace(/^w/, 'W')}</option>
+                    ))}
+                </select>
+              </div>
               <div style={{ display: 'flex', gap: 8, alignSelf: 'flex-end', paddingBottom: 2 }}>
                 <button
                   onClick={handleSave}
@@ -450,6 +535,8 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
                 )}
               </div>
             </div>
+
+            <ThresholdSummary tier={draftTier} ipoGrade={draftIpoGrade} />
           </div>
 
           {/* Solicitation method step editors */}
@@ -462,6 +549,7 @@ export default function SettingsPage({ profiles, activeProfileId, defaultProfile
               procKey={procKey}
               steps={draftProcessSteps[procKey] || PROCESSES[procKey].steps.map(s => ({ ...s }))}
               onChange={newSteps => handleStepsChange(procKey, newSteps)}
+              tier={draftTier}
             />
           ))}
           <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>

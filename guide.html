@@ -411,29 +411,72 @@
         </div>
       </div>
 
-      <h3>Goods &amp; Services</h3>
+      <p>Thresholds come from <strong>MS 502 Appendix G</strong> (effective 13 August 2026) and depend on the office tier.
+      FAO Ukraine is a Decentralized Office <strong>with an IPO</strong>, so <strong>Table 2</strong> applies. The tier is
+      selectable in Settings — change it and every threshold, and the LPC trigger derived from it, moves with it.
+      Bands are <strong>inclusive</strong>: a purchase of exactly USD 10,000 is a Micro Purchase, not an RFQ.</p>
+
+      <h3>Goods, Works &amp; Services — by office tier</h3>
       <table class="threshold-high">
-        <thead><tr><th>Value range (USD)</th><th>Method</th></tr></thead>
+        <thead><tr>
+          <th>Method</th>
+          <th>Table 2 — with IPO (FAO Ukraine)</th>
+          <th>Table 3 — without IPO</th>
+          <th>Table 1 — HQ Rome</th>
+        </tr></thead>
         <tbody>
-          <tr><td>&lt; 1,000</td><td>Very Low Value</td></tr>
-          <tr><td>1,000 – 4,999</td><td>Micro Purchase</td></tr>
-          <tr><td>5,000 – 24,999</td><td>Request for Quotation (RFQ)</td></tr>
-          <tr><td>≥ 25,000</td><td>Invitation to Bid (ITB)</td></tr>
+          <tr><td>Very Low Value (VLVP)</td><td>Up to 2,000</td><td>Up to 1,000</td><td>Up to 2,000</td></tr>
+          <tr><td>Micro Purchasing</td><td>2,001 – 10,000</td><td>1,001 – 5,000</td><td>2,001 – 10,000</td></tr>
+          <tr><td>Request for Quotation (RFQ)</td><td>10,001 – 50,000</td><td>5,001 – 25,000</td><td>10,001 – 80,000</td></tr>
+          <tr><td>ITB (goods/works) or RFP (services)</td><td>Above 50,000</td><td>Above 25,000</td><td>Above 80,000</td></tr>
         </tbody>
       </table>
 
-      <h3>Works</h3>
-      <table class="threshold-high">
-        <thead><tr><th>Value range (USD)</th><th>Method</th></tr></thead>
+      <h3>Procurement Committee review</h3>
+      <p>The <strong>LPC Review Threshold is not a fixed number</strong> — Appendix F2 §2 defines it as the ITB/RFP value
+      for the office, so for FAO Ukraine it is <strong>USD 50,000</strong>.</p>
+      <table>
+        <thead><tr><th>Committee</th><th>Trigger</th><th>Applies to</th></tr></thead>
         <tbody>
-          <tr><td>&lt; 1,000</td><td>Very Low Value</td></tr>
-          <tr><td>1,000 – 4,999</td><td>Micro Purchase</td></tr>
-          <tr><td>5,000 – 24,999</td><td>RFQ</td></tr>
-          <tr><td>≥ 25,000</td><td>ITB (Works)</td></tr>
+          <tr><td><strong>LPC</strong></td><td>Above USD 50,000</td><td>Award recommendations for new solicitations, <em>regardless of Award Basis</em>, and Direct Procurement (App. F2 §4.2). Plus RFP evaluation criteria ex ante (§4.1).</td></tr>
+          <tr><td><strong>RPC</strong></td><td>USD 200,000 – 499,999</td><td><strong>Only</strong> Exceptional, Distributed and Direct Procurement awards (App. E2 §5.2). An ordinary Competitive Award is <em>not</em> escalated on value alone. Plus RFP evaluation criteria (§5.1).</td></tr>
+          <tr><td><strong>HQPC</strong></td><td>Above USD 500,000</td><td>Same Award-Basis restriction as the RPC (App. D2 §5.2). USD 200,000 at HQ Rome.</td></tr>
+          <tr><td><strong>HQPC — high value</strong></td><td>Above USD 5,000,000</td><td>Ex ante, <em>regardless of Award Basis</em>, and never waivable — not even in an Emergency (App. D2 §5.9).</td></tr>
+          <tr><td><strong>Deviations</strong></td><td>50,000 – 100,000 → RPC<br>Above 100,000 → HQPC</td><td>Any deviation from MS 502 (§16). Required even in Emergencies.</td></tr>
+          <tr><td><strong>Extended Term</strong></td><td>Term over 5 years</td><td>LPC review regardless of value (App. F2 §4.7).</td></tr>
         </tbody>
       </table>
+      <p><strong>What actually escalates a competitive tender.</strong> An ITB or RFP reaches the RPC or HQPC when the
+      award becomes <em>Exceptional</em> — most often because <strong>fewer than three responsive offers</strong> were
+      received, or the award goes to other than the highest-ranked Vendor (MS 502.10.1.1.2). Tick
+      <em>&ldquo;Fewer than 3 responsive offers&rdquo;</em> under Additional Circumstances to model this.</p>
+
+      <h3>Procurement Authority — FAO Representative (Appendix C1)</h3>
+      <p>FAO Ukraine&rsquo;s IPO is at <strong>P3</strong>, which sets the FAO Representative&rsquo;s limits. Above these an
+      ad-hoc re-delegation must be obtained from the Regional Office or CSLP <em>before</em> tender issuance.</p>
+      <table>
+        <thead><tr><th>Authority</th><th>with IPO P3</th><th>with IPO P4</th><th>without IPO</th></tr></thead>
+        <tbody>
+          <tr><td>Issue solicitations</td><td>500,000</td><td>1,000,000</td><td>300,000</td></tr>
+          <tr><td>Competitive / UN Award</td><td>500,000</td><td>1,000,000</td><td>300,000</td></tr>
+          <tr><td>Exceptional Award / Direct Procurement</td><td>300,000</td><td>500,000</td><td>200,000</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Emergency Situations and Exigencies</h3>
+      <p>Committee review is <strong>never waived</strong> in an Emergency or Exigency, but it can change shape:</p>
+      <ul>
+        <li><strong>Email circulation</strong> — written comments from at least 5 committee members instead of a meeting (App. D2 §4 / E2 §4), or a &ldquo;virtual meeting&rdquo; authorised by the Chair (MS 502.9.3).</li>
+        <li><strong>Ex post facto</strong> — submitted within <strong>60 calendar days</strong> of contract issuance, subject to the Procurement Authority&rsquo;s agreement (MS 502.9.9). This takes the review off the critical path. Missing the deadline is a breach of MS 502.</li>
+        <li><strong>Never ex post:</strong> RFP evaluation criteria, and any procurement above USD 5m.</li>
+        <li>Under MS 502.6.7.6, procure by Direct Procurement <em>only</em> what is immediately required — the balance must go through a competitive process.</li>
+      </ul>
+      <p>Committees meet <strong>at least twice a month</strong> (MS 502.9.3), so an LPC step can wait longer than the nominal
+      5 days when it misses a meeting.</p>
 
       <h3>LOA thresholds</h3>
+      <p>Letters of Agreement are governed by <strong>MS 507</strong> and are expressly excluded from MS 502
+      (Appendix B §5), so the Appendix G thresholds above do <em>not</em> apply to them.</p>
       <table>
         <thead><tr><th>Threshold</th><th>Trigger</th></tr></thead>
         <tbody>

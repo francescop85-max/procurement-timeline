@@ -46,14 +46,26 @@ export function toISO(d) {
 
 export function buildSteps(procKey, activeMods, PROCESSES, MODIFIERS, baseSteps = null) {
   let steps = (baseSteps ?? PROCESSES[procKey].steps).map(s => ({ ...s }));
-  activeMods.forEach(modKey => {
-    const mod = MODIFIERS.find(m => m.key === modKey);
-    if (!mod || !mod.applicable.includes(procKey)) return;
-    const ns = { ...mod.addStep, minDays: mod.minDays, maxDays: mod.maxDays };
+  const mods = activeMods
+    .map(k => MODIFIERS.find(m => m.key === k))
+    .filter(m => m && m.applicable.includes(procKey));
+
+  const matches = (name, patterns) =>
+    (Array.isArray(patterns) ? patterns : [patterns]).some(p => name.includes(p));
+
+  // Pass 1 — insert new steps at their anchors.
+  mods.forEach(mod => {
+    if (!mod.addStep || mod.insertAtEnd) return;
+    const ns = { minDays: mod.minDays, maxDays: mod.maxDays, ...mod.addStep };
     if (mod.insertBeforeLast) {
       steps.splice(steps.length - 1, 0, ns);
     } else if (mod.insertAfter) {
-      const i = steps.findIndex(s => s.name === mod.insertAfter);
+      const names = Array.isArray(mod.insertAfter) ? mod.insertAfter : [mod.insertAfter];
+      let i = -1;
+      for (const name of names) {
+        i = steps.findIndex(s => s.name === name);
+        if (i >= 0) break;
+      }
       i >= 0 ? steps.splice(i + 1, 0, ns) : steps.push(ns);
     } else if (mod.insertBefore) {
       const names = Array.isArray(mod.insertBefore) ? mod.insertBefore : [mod.insertBefore];
@@ -65,6 +77,34 @@ export function buildSteps(procKey, activeMods, PROCESSES, MODIFIERS, baseSteps 
       i >= 0 ? steps.splice(i, 0, ns) : steps.unshift(ns);
     }
   });
+
+  // Pass 2 — drop steps taken off the critical path (e.g. ex post facto review).
+  mods.forEach(mod => {
+    if (!mod.removeMatching) return;
+    steps = steps.filter(s => !matches(s.name, mod.removeMatching));
+  });
+
+  // Pass 3 — retime steps in place (e.g. committee review by email circulation).
+  mods.forEach(mod => {
+    const o = mod.overrideMatching;
+    if (!o) return;
+    steps = steps.map(s => {
+      if (!matches(s.name, o.match)) return s;
+      return {
+        ...s,
+        minDays: o.minDays ?? s.minDays,
+        maxDays: o.maxDays ?? s.maxDays,
+        notes: o.noteSuffix ? `${s.notes || ""}${o.noteSuffix}` : s.notes,
+      };
+    });
+  });
+
+  // Pass 4 — append steps that follow the whole process.
+  mods.forEach(mod => {
+    if (!mod.insertAtEnd || !mod.addStep) return;
+    steps.push({ minDays: mod.minDays, maxDays: mod.maxDays, ...mod.addStep });
+  });
+
   return steps;
 }
 

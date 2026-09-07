@@ -1,8 +1,9 @@
 // src/planner/PlannerApp.jsx
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useHolidays } from '../hooks/useHolidays.js';
 import { useCampaigns } from './useCampaigns.js';
-import { PROCESSES, MODIFIERS, DEFAULT_PROFILE } from '../data.js';
+import { getProcesses, getModifiers, effectiveGrade, DEFAULT_PROFILE,
+         DEFAULT_TIER, DEFAULT_IPO_GRADE } from '../data.js';
 import { computeBackwardTimeline, computeCampaignStatus, computeProjectStatuses } from '../utils.js';
 import PlannerTimeline from './PlannerTimeline.jsx';
 import CampaignTable from './CampaignTable.jsx';
@@ -32,6 +33,17 @@ export default function PlannerApp() {
     () => loadLS('procurement_active_profile_id', 'default')
   );
   const selectedProfile = profiles.find(p => p.id === selectedProfileId) ?? profiles[0];
+
+  // Appendix G thresholds move with the profile's office tier, exactly as in the
+  // Estimator. Resolve them from the factories rather than importing the static
+  // PROCESSES/MODIFIERS, which are frozen at DEFAULT_TIER — the two tools must
+  // never recommend a different method for the same value.
+  const tierKey = selectedProfile.tier ?? DEFAULT_TIER;
+  const ipoGrade = effectiveGrade(tierKey, selectedProfile.ipoGrade ?? DEFAULT_IPO_GRADE);
+  // Memoised: CampaignPanel takes these as effect dependencies, so a fresh object
+  // on every render would recompute the timeline for no reason.
+  const tierProcesses = useMemo(() => getProcesses(tierKey), [tierKey]);
+  const tierModifiers = useMemo(() => getModifiers(tierKey, ipoGrade), [tierKey, ipoGrade]);
 
   const selectedCampaign = selectedId ? campaigns.find(c => c.id === selectedId) : null;
 
@@ -64,8 +76,8 @@ export default function PlannerApp() {
       formData.customModifier,
       formData.deliveryWeeks,
       holidays,
-      PROCESSES,
-      MODIFIERS,
+      tierProcesses,
+      tierModifiers,
       baseSteps,
     );
 
@@ -165,6 +177,9 @@ export default function PlannerApp() {
           <CampaignPanel
             campaign={panelMode === 'add' ? null : panelMode}
             profile={selectedProfile}
+            processes={tierProcesses}
+            modifiers={tierModifiers}
+            tierKey={tierKey}
             holidays={holidays}
             onSave={handlePanelSave}
             onClose={() => setPanelMode(null)}

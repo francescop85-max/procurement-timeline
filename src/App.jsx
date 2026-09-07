@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
-import { PROCESSES, MODIFIERS, QUICK_REF, FAO_DARK, FAO_BLUE, DEFAULT_PROFILE } from "./data";
+import { PROCESSES, MODIFIERS, QUICK_REF, FAO_DARK, FAO_BLUE, DEFAULT_PROFILE,
+         getProcesses, getModifiers, getQuickRef, methodForValue, thresholdLabel,
+         tierOf, DEFAULT_TIER, DEFAULT_IPO_GRADE } from "./data";
 import { toISO, formatDate, buildSteps, computeTimeline, computeTrackingTimeline, computeOverallStatus, subtractWorkingDays, countWorkingDays, addWorkingDays, encodePlanToHash, decodePlanFromHash, derivePlanId } from "./utils";
 import GanttChart from "./components/GanttChart";
 import StepEditor from "./components/StepEditor";
@@ -199,7 +201,7 @@ const ROW_TINT = {
   late:        "#fef2f2",
 };
 
-function StepsTable({ timeline, proc, activeMods, totalMinDays, totalMaxDays, minPoDate, maxPoDate, deliveryWeeks, minDeliveryDate, maxDeliveryDate, isWorks, actuals, onActualChange, trackingMode }) {
+function StepsTable({ timeline, proc, activeMods, totalMinDays, totalMaxDays, minPoDate, maxPoDate, deliveryWeeks, minDeliveryDate, maxDeliveryDate, isWorks, actuals, onActualChange, trackingMode, modifiers = MODIFIERS }) {
   const [expandedNotes, setExpandedNotes] = useState(new Set());
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const toggleNote = (i) => setExpandedNotes(prev => {
@@ -248,7 +250,7 @@ function StepsTable({ timeline, proc, activeMods, totalMinDays, totalMaxDays, mi
           <tbody>
             {timeline.map((step, i) => {
               const isExtra = activeMods.some(k => {
-                const m = MODIFIERS.find(md => md.key === k);
+                const m = modifiers.find(md => md.key === k);
                 return m && m.addStep && m.addStep.name === step.name;
               });
               const isLast = i === timeline.length - 1;
@@ -387,7 +389,7 @@ function StepsTable({ timeline, proc, activeMods, totalMinDays, totalMaxDays, mi
   );
 }
 
-function SmartSelector({ sel, updateSel, onSelect, onValueChange }) {
+function SmartSelector({ sel, updateSel, onSelect, onValueChange, tierKey = DEFAULT_TIER }) {
   const { value, type, hasLTA, hasFixedLTA, isDirect, recommendation, hint } = sel;
 
   function procDuration(key) {
@@ -423,29 +425,36 @@ function SmartSelector({ sel, updateSel, onSelect, onValueChange }) {
       }
       return;
     }
-    if (type === 'works') {
-      const reason = isNaN(v)
-        ? "Works / construction procurement always uses an ITB with a lump sum contract. Value is not required to determine the method. Ensure all legal authorizations, CSLI clearance, and Technical Dossier are in place before issuing the ITB."
-        : `Value USD ${v.toLocaleString()} for works/construction requires a public ITB with a lump sum contract. Technical Dossier, CSLI clearance, and Resident Engineer must be in place before the ITB is issued. LPC review is mandatory.`;
-      updateSel({ hint: null, recommendation: { key: "itb_works", reason }});
-      return;
-    }
     if (isNaN(v) || v < 0) {
       updateSel({ hint: "Please enter an estimated value, or select a special case (LTA or Direct Procurement).", recommendation: null });
       return;
     }
     updateSel({ hint: null });
-    if (v < 1000) {
-      updateSel({ recommendation: { key: "very_low", reason: `Value USD ${v.toLocaleString()} qualifies for a Very Low Value simplified purchase. Direct award with budget holder approval — no formal solicitation required.` }});
-    } else if (v < 5000) {
-      updateSel({ recommendation: { key: "micro", reason: `Value USD ${v.toLocaleString()} falls in the Micro Purchasing range (USD 1,000 – < 5,000). At least 3 sources must be solicited and a Canvassing Form prepared.` }});
-    } else if (v < 25000) {
-      updateSel({ recommendation: { key: "rfq", reason: `Value USD ${v.toLocaleString()} requires a formal Request for Quotation (USD 5,000 – < 25,000). Minimum 3 vendors via UNGM or FAOUA-tender email.` }});
-    } else if (type === "goods") {
-      updateSel({ recommendation: { key: "itb", reason: `Value USD ${v.toLocaleString()} for goods requires a public Invitation to Bid (ITB). Award to lowest compliant bid. LPC review is mandatory.`, alternatives: ["direct_procurement"] }});
-    } else {
-      updateSel({ recommendation: { key: "rfp", reason: `Value USD ${v.toLocaleString()} for services/complex procurement requires a public Request for Proposal (RFP). Two-envelope process with LPC ex-ante review.`, alternatives: ["direct_procurement"] }});
-    }
+    const key = methodForValue(v, tierKey, type);
+    const band = thresholdLabel(key, tierKey);
+    const t = tierOf(tierKey);
+    const lpc = `USD ${t.rfqMax.toLocaleString("en-US")}`;
+    const money = `USD ${v.toLocaleString("en-US")}`;
+    const REASONS = {
+      very_low: `${money} falls in the Very Low Value band (${band}) for a ${tierOf(tierKey).label.toLowerCase()}. Direct selection of a Vendor — no competitive quotations or canvassing required where the item is readily available and the price is reasonable. Document the description and written evidence of the price paid.`,
+      micro:    `${money} falls in the Micro Purchasing band (${band}). Canvass at least 3 Vendors and prepare a Canvassing Form. Use on an exceptional basis only — if the requirement recurs, use a formal method or an LTA for the total quantity.`,
+      rfq:      `${money} falls in the RFQ band (${band}). Obtain written prices from at least 3 sources; if fewer than 3 quotations are obtained, document the reasons. E-tendering is recommended but not mandatory for RFQs.`,
+      itb:      `${money} for goods is above the ${lpc} formal-solicitation threshold, so a public Invitation to Bid is required. Sealed submissions via the mandatory e-tendering system. Award to the lowest compliant bid. LPC review of the award is mandatory.`,
+      rfp:      `${money} for services/complex procurement is above the ${lpc} formal-solicitation threshold, so a public Request for Proposal is required. Two-envelope process; LPC ex-ante review of the evaluation criteria is mandatory and can never be done ex post facto.`,
+      itb_works:`${money} for works/construction is above the ${lpc} formal-solicitation threshold, so a public Invitation to Bid with a lump sum contract is required. Technical Dossier, CSLI clearance and Resident Engineer must be in place before the ITB is issued. LPC review of the award is mandatory.`,
+    };
+
+    // Works below the formal-solicitation threshold follows the ordinary
+    // Appendix G bands, but the Construction Guidelines still apply to the work
+    // itself — say so rather than let the low-value band read as the whole story.
+    const worksCaveat = type === "works" && key !== "itb_works"
+      ? " Note: this is works/construction, so the FAO Construction Guidelines still apply — technical scope, site access and supervision arrangements must be settled before commitment, even though the value keeps this out of a formal ITB."
+      : "";
+    updateSel({ recommendation: {
+      key,
+      reason: REASONS[key] + worksCaveat,
+      alternatives: (key === "itb" || key === "rfp") ? ["direct_procurement"] : undefined,
+    }});
   }
 
   const typeBtn = (v) => ({
@@ -718,6 +727,13 @@ export default function App() {
     : (profiles.find(p => p.id === activeProfileId) ?? effectiveDefault);
   const countryCode = activeProfile.countryCode;
   const leadTimeOverrides = activeProfile.leadTimes;
+  const tierKey = activeProfile.tier ?? DEFAULT_TIER;
+  const ipoGrade = activeProfile.ipoGrade ?? DEFAULT_IPO_GRADE;
+  // Appendix G thresholds, Appendix C1 authority limits and the committee
+  // triggers derived from them all move with the office tier.
+  const tierProcesses = getProcesses(tierKey);
+  const tierModifiers = getModifiers(tierKey, ipoGrade);
+  const tierQuickRef  = getQuickRef(tierKey);
 
   const [deliveryWeeks, setDeliveryWeeks] = useState(0);
   const [estimatedValue, setEstimatedValue] = useState(null);
@@ -775,11 +791,13 @@ export default function App() {
           setDesiredDeliveryDate(cfg.desiredDeliveryDate || "");
           setActiveMods(cfg.activeMods || []);
           setStepOverride(cfg.stepOverride || null);
-          if (cfg.countryCode || cfg.leadTimeOverrides) {
+          if (cfg.countryCode || cfg.leadTimeOverrides || cfg.tier || cfg.ipoGrade) {
             const snapshotProfile = {
               id: `profile_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
               name: 'From shared link',
               countryCode: cfg.countryCode || 'UA',
+              tier: cfg.tier || DEFAULT_TIER,
+              ipoGrade: cfg.ipoGrade || DEFAULT_IPO_GRADE,
               leadTimes: cfg.leadTimeOverrides || {},
             };
             setProfiles(prev => {
@@ -803,10 +821,10 @@ export default function App() {
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
 
-  const proc = selected ? PROCESSES[selected] : null;
+  const proc = selected ? tierProcesses[selected] : null;
   const isWorks = selected === 'itb_works';
 
-  const applicableMods = selected ? MODIFIERS.filter(m => {
+  const applicableMods = selected ? tierModifiers.filter(m => {
     if (!m.applicable.includes(selected)) return false;
     if (estimatedValue !== null && !isNaN(estimatedValue)) {
       if (m.minValue !== undefined && estimatedValue < m.minValue) return false;
@@ -826,7 +844,7 @@ export default function App() {
   }
 
   const profileBaseSteps = selected ? (activeProfile.processSteps?.[selected] ?? null) : null;
-  const rawSteps = selected ? buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS, profileBaseSteps) : [];
+  const rawSteps = selected ? buildSteps(selected, effectiveActiveMods, tierProcesses, tierModifiers, profileBaseSteps) : [];
   const steps = selected ? (stepOverride ?? applyLeadTimeOverrides(rawSteps)) : [];
   // Original (planned) timeline — always the baseline
   const originalTimeline = steps.length && prDate ? computeTimeline(steps, prDate, holidays) : [];
@@ -933,6 +951,9 @@ export default function App() {
     stepOverride: stepOverride ?? (profileBaseSteps ? steps : undefined),
     countryCode: countryCode !== 'UA' ? countryCode : undefined,
     leadTimeOverrides: Object.keys(leadTimeOverrides).length ? leadTimeOverrides : undefined,
+    // Carry the Appendix G office tier so a shared plan is read with the same thresholds
+    tier: tierKey !== DEFAULT_TIER ? tierKey : undefined,
+    ipoGrade: ipoGrade !== DEFAULT_IPO_GRADE ? ipoGrade : undefined,
     deliveryWeeks,
     estimatedValue,
     desiredPoDate,
@@ -1110,7 +1131,7 @@ export default function App() {
         {/* HOME */}
         {!selected && !showPlans && (
           <>
-            <SmartSelector sel={sel} updateSel={updateSel} onSelect={selectProcess} onValueChange={v => setEstimatedValue(v)} />
+            <SmartSelector sel={sel} updateSel={updateSel} onSelect={selectProcess} onValueChange={v => setEstimatedValue(v)} tierKey={tierKey} />
 
             <div className="card" style={{ padding: "18px 20px" }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: "var(--text-primary)", letterSpacing: "-0.2px" }}>Quick Reference — FAOUA Thresholds &amp; Methods (PR → PO)</div>
@@ -1124,18 +1145,15 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {QUICK_REF.map(([m, v, a, c, d], i) => {
-                      const procKeys = ["very_low", "micro", "rfq", "itb", "rfp", "lta_fixed", "lta_mini", "direct_procurement", "itb_works"];
-                      return (
-                        <tr key={m} className="quick-ref-row" onClick={() => selectProcess(procKeys[i])} style={{ background: i % 2 ? "#fafbfc" : "#fff" }}>
-                          <td style={{ fontWeight: 600, color: PROCESSES[procKeys[i]]?.color }}>{m}</td>
-                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{v}</td>
-                          <td>{a}</td>
-                          <td style={{ color: "var(--text-secondary)" }}>{c}</td>
-                          <td style={{ fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-teal)" }}>{d}</td>
-                        </tr>
-                      );
-                    })}
+                    {tierQuickRef.map((r, i) => (
+                      <tr key={r.key} className="quick-ref-row" onClick={() => selectProcess(r.key)} style={{ background: i % 2 ? "#fafbfc" : "#fff" }}>
+                        <td style={{ fontWeight: 600, color: PROCESSES[r.key]?.color }}>{r.method}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{r.range}</td>
+                        <td>{r.basis}</td>
+                        <td style={{ color: "var(--text-secondary)" }}>{r.review}</td>
+                        <td style={{ fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-teal)" }}>{r.duration}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1292,7 +1310,7 @@ export default function App() {
                   <button
                     className="btn"
                     style={{ borderColor: proc.color, color: proc.color, fontSize: 12, width: "100%" }}
-                    onClick={() => setStepOverride(buildSteps(selected, effectiveActiveMods, PROCESSES, MODIFIERS))}
+                    onClick={() => setStepOverride(buildSteps(selected, effectiveActiveMods, tierProcesses, tierModifiers))}
                   >
                     ✏️ Customize Steps
                   </button>
@@ -1395,6 +1413,7 @@ export default function App() {
                 trackingMode={trackingMode}
                 actuals={actuals}
                 onActualChange={updateActual}
+                modifiers={tierModifiers}
               />
             )}
 
@@ -1414,7 +1433,7 @@ export default function App() {
                     minDeliveryDate={minDeliveryDate}
                     maxDeliveryDate={maxDeliveryDate}
                     activeMods={effectiveActiveMods}
-                    MODIFIERS={MODIFIERS}
+                    MODIFIERS={tierModifiers}
                     status={poStatus}
                     actuals={trackingMode ? actuals : undefined}
                   />

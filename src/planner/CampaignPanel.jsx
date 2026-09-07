@@ -1,23 +1,9 @@
 // src/planner/CampaignPanel.jsx
 import { useState, useEffect } from 'react';
-import { PROCESSES, MODIFIERS } from '../data.js';
+import { recommendMethod } from './recommend.js';
 import { computeBackwardTimeline, computeProjectStatuses, formatDate, buildSteps } from '../utils.js';
 import { useHolidays } from '../hooks/useHolidays.js';
 
-function recommendMethod(value, type) {
-  if (!value || !type) return null;
-  const v = Number(value);
-  if (type === 'works') {
-    if (v < 1000) return 'very_low';
-    if (v < 5000) return 'micro';
-    if (v < 25000) return 'rfq';
-    return 'itb_works';
-  }
-  if (v < 1000) return 'very_low';
-  if (v < 5000) return 'micro';
-  if (v < 25000) return 'rfq';
-  return 'itb';
-}
 
 const EMPTY_FORM = {
   cropName: '',
@@ -32,7 +18,7 @@ const EMPTY_FORM = {
   remarks: '',
 };
 
-export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
+export default function CampaignPanel({ campaign, profile, processes, modifiers, tierKey, onSave, onClose }) {
   const { holidays } = useHolidays();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showAllMods, setShowAllMods] = useState(false);
@@ -59,8 +45,8 @@ export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
   }, [campaign]);
 
   useEffect(() => {
-    const method = overrideMethod ? form.selectedMethod : (recommendMethod(form.estimatedValue, form.procurementType) || form.selectedMethod);
-    if (!form.plantingDate || !method || !PROCESSES[method]) {
+    const method = overrideMethod ? form.selectedMethod : (recommendMethod(form.estimatedValue, form.procurementType, tierKey) || form.selectedMethod);
+    if (!form.plantingDate || !method || !processes[method]) {
       setComputed(null);
       return;
     }
@@ -76,8 +62,8 @@ export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
         customMod,
         Number(form.deliveryWeeks) || 0,
         holidays,
-        PROCESSES,
-        MODIFIERS,
+        processes,
+        modifiers,
         baseSteps,
       );
       setComputed({ ...result, method });
@@ -85,7 +71,8 @@ export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
       setComputed(null);
     }
   }, [form.plantingDate, form.estimatedValue, form.procurementType, form.selectedMethod,
-      form.activeMods, form.customModifier, form.deliveryWeeks, overrideMethod, holidays]);
+      form.activeMods, form.customModifier, form.deliveryWeeks, overrideMethod, holidays,
+      tierKey, processes, modifiers]);
 
   function set(key, value) {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -114,7 +101,7 @@ export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
   }
 
   function handleSave() {
-    const method = overrideMethod ? form.selectedMethod : (recommendMethod(form.estimatedValue, form.procurementType) || form.selectedMethod);
+    const method = overrideMethod ? form.selectedMethod : (recommendMethod(form.estimatedValue, form.procurementType, tierKey) || form.selectedMethod);
     if (!form.cropName || !form.plantingDate || !method) return;
     const customMod = form.customModifier.label && form.customModifier.days > 0
       ? { label: form.customModifier.label, days: Number(form.customModifier.days), position: form.customModifier.position !== '' ? Number(form.customModifier.position) : undefined }
@@ -129,10 +116,10 @@ export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
     });
   }
 
-  const recommended = recommendMethod(form.estimatedValue, form.procurementType);
+  const recommended = recommendMethod(form.estimatedValue, form.procurementType, tierKey);
   const activeMethod = overrideMethod ? form.selectedMethod : recommended;
 
-  const applicableMods = MODIFIERS.filter(m => !activeMethod || m.applicable.includes(activeMethod));
+  const applicableMods = modifiers.filter(m => !activeMethod || m.applicable.includes(activeMethod));
   const visibleMods = showAllMods ? applicableMods : applicableMods.slice(0, 3);
 
   const projectStatusPreview = computed
@@ -198,13 +185,13 @@ export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
         <div className="panel-label">Procurement Method</div>
         {recommended && !overrideMethod ? (
           <div className="method-recommendation">
-            ✓ Recommended: <strong>{PROCESSES[recommended]?.label}</strong><br />
-            <span style={{ color: '#888', fontSize: 10 }}>{PROCESSES[recommended]?.threshold}</span>
+            ✓ Recommended: <strong>{processes[recommended]?.label}</strong><br />
+            <span style={{ color: '#888', fontSize: 10 }}>{processes[recommended]?.threshold}</span>
           </div>
         ) : (
           <select className="panel-input" value={form.selectedMethod} onChange={e => set('selectedMethod', e.target.value)}>
             <option value="">Select method…</option>
-            {Object.entries(PROCESSES).map(([key, p]) => (
+            {Object.entries(processes).map(([key, p]) => (
               <option key={key} value={key}>{p.label}</option>
             ))}
           </select>
@@ -236,7 +223,7 @@ export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
           <input className="panel-input" type="number" min="1" style={{ width: 70 }} placeholder="Days" value={form.customModifier.days} onChange={e => set('customModifier', { ...form.customModifier, days: e.target.value })} />
           <span style={{ fontSize: 11, color: '#888' }}>working days</span>
         </div>
-        {activeMethod && PROCESSES[activeMethod] && (
+        {activeMethod && processes[activeMethod] && (
           <div>
             <div style={{ fontSize: 10, color: '#555', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>Insert after</div>
             <select
@@ -245,7 +232,7 @@ export default function CampaignPanel({ campaign, profile, onSave, onClose }) {
               onChange={e => set('customModifier', { ...form.customModifier, position: e.target.value })}
             >
               <option value="">— Before first step —</option>
-              {buildSteps(activeMethod, form.activeMods, PROCESSES, MODIFIERS, profile?.processSteps?.[activeMethod] ?? null).map((s, i) => (
+              {buildSteps(activeMethod, form.activeMods, processes, modifiers, profile?.processSteps?.[activeMethod] ?? null).map((s, i) => (
                 <option key={i} value={i + 1}>After step {i + 1}: {s.name}</option>
               ))}
             </select>
