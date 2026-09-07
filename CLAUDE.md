@@ -62,8 +62,21 @@ RPC/HQPC on value alone.**
 
 What actually pulls a competitive ITB/RFP into RPC/HQPC is the award becoming
 *Exceptional* — most often fewer than three responsive offers
-(MS 502.10.1.1.2(c)). That is modelled as the `exceptional_award` circumstance,
-with `rpc_exceptional` / `hqpc_exceptional` as its value-gated companions.
+(MS 502.10.1.1.2(c)).
+
+**That is deliberately not a planning toggle.** There is no `exceptional_award`
+circumstance, and it must not be reintroduced as one. This tool plans a timeline
+*before* the solicitation is issued, so nobody knows yet how many responsive
+offers will arrive — offering it as a tick box invites a planner to bake days
+into an estimate for something that has not happened. If an award does turn out
+Exceptional, the determination and whatever it triggers are added to that
+specific plan with **"+ Add Step"** in the step editor (`StepEditor.jsx`), which
+is exactly what the ad-hoc mechanism is for. A test asserts the toggle is absent
+on every tier and that no process inserts an Award Basis determination step.
+
+What remains selectable is `rpc_exceptional` / `hqpc_exceptional`, value-gated,
+labelled for a **Distributed** award or one a planner already expects to be
+Exceptional — both of which *are* known up front.
 
 Separately, RPC/HQPC review **RFP evaluation criteria** ex ante above their
 thresholds (E2 §5.1 / D2 §5.1), and HQPC reviews **anything above USD 5m** ex
@@ -81,7 +94,16 @@ consistent — an office `without_ipo` is always coerced to grade `none`.
 
 Committee review is **never waived**, only reshaped: email circulation to ≥5
 members, or ex post facto within **60 calendar days** of contract issuance
-(MS 502.9.9). Two hard exclusions that must not regress: **RFP evaluation
+(MS 502.9.9).
+
+Both circumstances declare `minDays: 0, maxDays: 0` because they add no step —
+they retime committee review (`overrideMatching`) or lift it off the critical
+path (`removeMatching` + `insertAtEnd`). They are the only two circumstances
+that make a timeline *shorter*, so a UI that reads `minDays`/`maxDays` off the
+circumstance reports "+0–0d" for the two entries with the largest effect. The
+Estimator therefore **measures** impact — `modDeltas` in `App.jsx` builds the
+timeline with and without each circumstance and diffs the totals. Never render a
+circumstance's own days as its schedule impact. Two hard exclusions that must not regress: **RFP evaluation
 criteria** and **anything above USD 5m** can never go ex post.
 
 ### What is *not* in MS 502

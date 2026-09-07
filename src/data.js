@@ -252,6 +252,14 @@ export const PROCESSES = {
 //   • RPC (E2 §5.1) / HQPC (D2 §5.1) additionally review RFP EVALUATION CRITERIA
 //     ex ante above their thresholds.
 //   • HQPC (D2 §5.9) reviews any award above USD 5m ex ante regardless of basis.
+//
+// There is deliberately no "Exceptional Award" circumstance. Whether an award
+// turns out Exceptional (fewer than 3 responsive offers, award not to the
+// highest-ranked Vendor — MS 502.10.1.1.2) is not knowable at planning time,
+// which is when this tool is used: the solicitation has not been issued yet.
+// If an award does become Exceptional during the process, the determination and
+// any committee or re-delegation step it triggers are added to that plan with
+// "+ Add Step" in the step editor. Do not reintroduce it as a planning toggle.
 // ─────────────────────────────────────────────────────────────────────────────
 const COMMITTEE_STEP_MATCH = ["LPC review", "LPC meeting", "LPC ex-ante", "RPC review", "HQPC review"];
 
@@ -262,16 +270,8 @@ export function getModifiers(tierKey = DEFAULT_TIER, ipoGrade = DEFAULT_IPO_GRAD
 
   return [
     // ── Award Basis ─────────────────────────────────────────────────────────
-    { key: "exceptional_award",
-      label: "Fewer than 3 responsive offers, or award not to the highest-ranked Vendor → Exceptional Award",
-      minDays: 2, maxDays: 4,
-      addStep: { name: "Exceptional Award — justification & Award Basis determination", owner: "Buyer / Procurement Officer",
-        notes: "⚠️ MS 502.10.1.1.2: an award is Exceptional where fewer than 3 responsive offers are obtained, where the award goes to other than the highest-ranked Vendor, or where the recommendation deviates from the standard evaluation basis. This is what pulls a competitive tender into RPC/HQPC review — add the matching committee circumstance below." },
-      applicable: ["itb", "itb_works", "rfp", "rfq", "micro"],
-      insertAfter: ["Commercial evaluation & clearances", "Financial evaluation & award recommendation draft", "Commercial evaluation", "Preparation of Micro Purchase Canvassing Form"] },
-
     { key: "rpc_exceptional",
-      label: `Exceptional / Distributed Award, ${fmtUsd(RPC_MIN)} – ${fmtUsd(RPC_MAX)} → RPC review (select Exceptional Award above too)`,
+      label: `Distributed Award, or an award expected to be Exceptional, ${fmtUsd(RPC_MIN)} – ${fmtUsd(RPC_MAX)} → RPC review`,
       minDays: 5, maxDays: 10, minValue: RPC_MIN, maxValue: RPC_MAX,
       addStep: { name: "RPC review — submission & approval", owner: "RPC Members / Buyer / Requisitioner",
         notes: "⚠️ Appendix E2 §5.2 — required for an Exceptional, Distributed or Direct Procurement award above the Review Threshold. Submitted ex ante via the IPO after Budget Holder and LTO/TCU clearance. REU confirmation needed in advance. Does NOT apply to an ordinary Competitive Award." },
@@ -279,7 +279,7 @@ export function getModifiers(tierKey = DEFAULT_TIER, ipoGrade = DEFAULT_IPO_GRAD
       insertAfter: ["LPC review — submission & approval", "LPC meeting & award approval"] },
 
     { key: "hqpc_exceptional",
-      label: `Exceptional / Distributed Award ≥ ${fmtUsd(hqpcMin)} → HQPC review (select Exceptional Award above too)`,
+      label: `Distributed Award, or an award expected to be Exceptional, ≥ ${fmtUsd(hqpcMin)} → HQPC review`,
       minDays: 7, maxDays: 14, minValue: hqpcMin,
       addStep: { name: "HQPC review — submission & approval", owner: "HQ Procurement Committee / Buyer / Requisitioner",
         notes: "⚠️ Appendix D2 §5.2 — required for an Exceptional, Distributed or Direct Procurement award above the Review Threshold. Reviewed by the FAO HQ Procurement Committee in Rome. Submissions prepared by the Requisitioner via the Buyer. Does NOT apply to an ordinary Competitive Award." },

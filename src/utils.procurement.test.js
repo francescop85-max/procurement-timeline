@@ -70,7 +70,8 @@ describe("Committee review thresholds", () => {
     const itbCommittee = mods.filter(m =>
       m.applicable.includes("itb") && /RPC|HQPC/.test(m.addStep?.name ?? ""));
     // Every RPC/HQPC step reachable from an ITB must be conditioned on something
-    // other than plain value: Exceptional Award, a deviation, >5m, or extended term.
+    // other than plain value: a Distributed/Exceptional award basis, a deviation,
+    // >5m, or extended term.
     for (const m of itbCommittee) {
       expect(m.key).not.toBe("rpc_itb");
       expect(["rpc_exceptional", "hqpc_exceptional", "hqpc_5m",
@@ -115,17 +116,32 @@ describe("Appendix C1 — procurement authority limits", () => {
   });
 });
 
+// The award basis is not knowable when a timeline is planned — the solicitation
+// has not been issued, so nobody knows yet how many responsive offers arrive.
+describe("Award Basis is not a planning input", () => {
+  it("offers no Exceptional Award circumstance to tick at planning time", () => {
+    for (const tier of ["with_ipo", "without_ipo", "hq"]) {
+      const keys = getModifiers(tier, "P3").map(m => m.key);
+      expect(keys, `${tier} still offers an Exceptional Award toggle`)
+        .not.toContain("exceptional_award");
+    }
+  });
+
+  it("adds no Award Basis determination step to any process", () => {
+    const P3 = getProcesses("with_ipo");
+    for (const key of Object.keys(P3)) {
+      const all = buildSteps(key, getModifiers("with_ipo", "P3").map(m => m.key), P3,
+                             getModifiers("with_ipo", "P3"));
+      expect(all.some(s => /Exceptional Award/.test(s.name)),
+        `${key} inserts an Exceptional Award step`).toBe(false);
+    }
+  });
+});
+
 describe("buildSteps — new circumstance shapes", () => {
   const P = getProcesses("with_ipo");
   const M = getModifiers("with_ipo", "P3");
   const names = steps => steps.map(s => s.name);
-
-  it("inserts the Exceptional Award determination after commercial evaluation", () => {
-    const steps = buildSteps("itb", ["exceptional_award"], P, M);
-    const i = names(steps).findIndex(n => n.startsWith("Exceptional Award"));
-    expect(i).toBeGreaterThan(-1);
-    expect(names(steps)[i - 1]).toBe("Commercial evaluation & clearances");
-  });
 
   it("retimes committee review under email circulation without removing it", () => {
     const base = buildSteps("itb", [], P, M);
@@ -148,9 +164,30 @@ describe("buildSteps — new circumstance shapes", () => {
   });
 
   it("still removes an RPC step that another circumstance inserted, when ex post applies", () => {
-    const steps = buildSteps("itb", ["exceptional_award", "rpc_exceptional", "ex_post_facto"], P, M);
+    const withRpc = buildSteps("itb", ["rpc_exceptional"], P, M);
+    expect(names(withRpc).some(n => n.startsWith("RPC review"))).toBe(true);
+    const steps = buildSteps("itb", ["rpc_exceptional", "ex_post_facto"], P, M);
     expect(names(steps).some(n => n.startsWith("RPC review"))).toBe(false);
-    expect(names(steps).some(n => n.startsWith("Exceptional Award"))).toBe(true);
+  });
+
+  it("shortens the timeline under Emergency/Exigency rather than adding days", () => {
+    // Both circumstances declare minDays/maxDays 0 because they add no step of
+    // their own — they retime or relocate committee review. Their real schedule
+    // impact must therefore be measured, never read off the circumstance.
+    const total = mods => {
+      const st = buildSteps("itb", mods, P, M);
+      return [st.reduce((a, x) => a + x.minDays, 0), st.reduce((a, x) => a + x.maxDays, 0)];
+    };
+    const [bMin, bMax] = total([]);
+    const [eMin, eMax] = total(["committee_email_circulation"]);
+    const [xMin, xMax] = total(["ex_post_facto"]);
+    expect(eMin).toBeLessThan(bMin);
+    expect(eMax).toBeLessThan(bMax);
+    expect(xMin).toBeLessThan(bMin);
+    expect(xMax).toBeLessThan(bMax);
+    // ex post facto takes committee review off the critical path entirely, so it
+    // must save at least as much as merely speeding the meeting up by email.
+    expect(bMax - xMax).toBeGreaterThanOrEqual(bMax - eMax);
   });
 
   it("never takes the RFP evaluation-criteria review ex post — the manual forbids it", () => {
