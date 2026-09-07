@@ -6,6 +6,7 @@ import { useHolidays } from '../hooks/useHolidays.js';
 import StepEditor from '../components/StepEditor.jsx';
 import LoaPanel from './LoaPanel.jsx';
 import LoaGantt from './LoaGantt.jsx';
+import LoaMonitor from './LoaMonitor.jsx';
 
 const STATUS_COLORS = { on_track: '#4CAF50', at_risk: '#FF9800', overdue: '#e53935', unknown: '#bbb' };
 const STATUS_LABELS = { on_track: 'On track', at_risk: 'At risk', overdue: 'Overdue', unknown: '—' };
@@ -25,17 +26,24 @@ export default function LoaApp() {
   const { plans, loading, savePlan, deletePlan } = useLoaPlans();
   const { holidays } = useHolidays();
   const [selectedId, setSelectedId] = useState(null);
+  const [monitorId, setMonitorId] = useState(null);
   const [panelMode, setPanelMode] = useState(null);
   const [activeTab, setActiveTab] = useState('table');
   const [stepEditMode, setStepEditMode] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Detect #plan=<id> in URL hash and auto-select after plans load
+  // Detect #plan=<id> or #monitor=<id> in URL hash after plans load
   useEffect(() => {
     if (loading) return;
-    const match = window.location.hash.match(/^#plan=(.+)$/);
-    if (match) {
-      const planId = decodeURIComponent(match[1]);
+    const hash = window.location.hash;
+    const monitorMatch = hash.match(/^#monitor=(.+)$/);
+    const planMatch = hash.match(/^#plan=(.+)$/);
+    if (monitorMatch) {
+      const planId = decodeURIComponent(monitorMatch[1]);
+      const found = plans.find(p => p.id === planId);
+      if (found) { setMonitorId(found.id); window.location.hash = ''; }
+    } else if (planMatch) {
+      const planId = decodeURIComponent(planMatch[1]);
       const found = plans.find(p => p.id === planId);
       if (found) { setSelectedId(found.id); window.location.hash = ''; }
     }
@@ -84,11 +92,13 @@ export default function LoaApp() {
 
   function handleCopyLink() {
     if (!selectedPlan) return;
-    const url = `${window.location.origin}/loa#plan=${encodeURIComponent(selectedPlan.id)}`;
+    const url = `${window.location.origin}/loa#monitor=${encodeURIComponent(selectedPlan.id)}`;
     navigator.clipboard.writeText(url).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }
+
+  const monitorPlan = monitorId ? plans.find(p => p.id === monitorId) : null;
 
   const enriched = plans.map(p => ({ ...p, status: computeLoaStatus(p) }));
   const lastStep = selectedPlan?.steps?.[selectedPlan.steps.length - 1];
@@ -131,7 +141,28 @@ export default function LoaApp() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      {/* Monitor overlay */}
+      {monitorPlan && (
+        <div style={{ flex: 1, overflowY: 'auto', background: '#f4f6f8' }}>
+          <div style={{ padding: '12px 24px', background: '#fff', borderBottom: '1px solid #e8e8e8', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 12, color: '#888' }}>Monitoring view</span>
+            <button
+              onClick={() => setMonitorId(null)}
+              style={{ fontSize: 12, padding: '4px 12px', border: '1px solid #ddd', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#1a2e44', fontWeight: 600 }}
+            >
+              ← Back to planner
+            </button>
+          </div>
+          <LoaMonitor
+            plan={monitorPlan}
+            onSave={async (updatedPlan) => {
+              await savePlan(updatedPlan);
+            }}
+          />
+        </div>
+      )}
+
+      <div style={{ display: monitorPlan ? 'none' : 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* Sidebar */}
         <aside style={{ width: 260, background: '#fff', borderRight: '1px solid #e8e8e8', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
@@ -224,6 +255,12 @@ export default function LoaApp() {
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 8, alignSelf: 'flex-start', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setMonitorId(selectedPlan.id)}
+                    style={{ fontSize: 12, padding: '5px 12px', border: `1px solid ${proc.color}`, borderRadius: 6, background: proc.color, cursor: 'pointer', fontWeight: 600, color: '#fff' }}
+                  >
+                    📊 Open Monitor
+                  </button>
                   <button
                     onClick={handleCopyLink}
                     style={{ fontSize: 12, padding: '5px 12px', border: `1px solid ${proc.color}`, borderRadius: 6, background: copied ? proc.color : '#fff', cursor: 'pointer', fontWeight: 600, color: copied ? '#fff' : proc.color, transition: 'all 0.2s' }}
