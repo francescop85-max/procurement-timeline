@@ -389,6 +389,31 @@ function StepsTable({ timeline, proc, activeMods, totalMinDays, totalMaxDays, mi
   );
 }
 
+/**
+ * Schedule impact of a circumstance, measured rather than declared. `delta` is
+ * [minDaysChange, maxDaysChange] against the current selection: positive adds to
+ * the timeline, negative takes off it (Emergency/Exigency reshapes committee
+ * review instead of adding a step, so it reads as a saving).
+ */
+function ModImpact({ delta }) {
+  if (!delta) return null;
+  const [a, b] = delta;
+  const base = { marginLeft: 6, fontSize: 11 };
+  if (a === 0 && b === 0) {
+    return <span className="mono" style={{ ...base, color: "var(--text-muted)" }}>no change to the timeline</span>;
+  }
+  const lo = Math.min(Math.abs(a), Math.abs(b));
+  const hi = Math.max(Math.abs(a), Math.abs(b));
+  const range = lo === hi ? `${lo}d` : `${lo}–${hi}d`;
+  if (a <= 0 && b <= 0) {
+    return <span className="mono" style={{ ...base, color: "#2e7d32", fontWeight: 600 }}>−{range} shorter</span>;
+  }
+  if (a >= 0 && b >= 0) {
+    return <span className="mono" style={{ ...base, color: "var(--text-muted)" }}>+{range}</span>;
+  }
+  return <span className="mono" style={{ ...base, color: "var(--text-muted)" }}>{a} to {b}d</span>;
+}
+
 function SmartSelector({ sel, updateSel, onSelect, onValueChange, tierKey = DEFAULT_TIER }) {
   const { value, type, hasLTA, hasFixedLTA, isDirect, recommendation, hint } = sel;
 
@@ -845,6 +870,28 @@ export default function App() {
 
   const profileBaseSteps = selected ? (activeProfile.processSteps?.[selected] ?? null) : null;
   const rawSteps = selected ? buildSteps(selected, effectiveActiveMods, tierProcesses, tierModifiers, profileBaseSteps) : [];
+
+  // A circumstance's schedule impact is NOT its own minDays/maxDays. The ones that
+  // retime or remove steps rather than adding one — Emergency/Exigency email
+  // circulation and ex post facto review — declare 0/0 and yet change the timeline
+  // more than anything else, by shortening it. Measure the real delta by building
+  // the timeline with and without each circumstance, so the badge can never read
+  // "+0–0d" for something that takes 10 days off the critical path.
+  const modDeltas = (() => {
+    if (!selected) return {};
+    const total = mods => {
+      const st = buildSteps(selected, mods, tierProcesses, tierModifiers, profileBaseSteps);
+      return [st.reduce((a, x) => a + x.minDays, 0), st.reduce((a, x) => a + x.maxDays, 0)];
+    };
+    const out = {};
+    for (const mod of tierModifiers) {
+      const without = effectiveActiveMods.filter(k => k !== mod.key);
+      const [bMin, bMax] = total(without);
+      const [mMin, mMax] = total([...without, mod.key]);
+      out[mod.key] = [mMin - bMin, mMax - bMax];
+    }
+    return out;
+  })();
   const steps = selected ? (stepOverride ?? applyLeadTimeOverrides(rawSteps)) : [];
   // Original (planned) timeline — always the baseline
   const originalTimeline = steps.length && prDate ? computeTimeline(steps, prDate, holidays) : [];
@@ -1347,9 +1394,7 @@ export default function App() {
                       />
                       <span>
                         <span style={{ fontWeight: 600 }}>{mod.label}</span>
-                        <span className="mono" style={{ color: "var(--text-muted)", marginLeft: 6, fontSize: 11 }}>
-                          +{mod.minDays}–{mod.maxDays}d
-                        </span>
+                        <ModImpact delta={modDeltas[mod.key]} />
                       </span>
                     </label>
                   ))}
